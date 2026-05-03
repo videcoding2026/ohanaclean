@@ -11,6 +11,23 @@
       "type": "local",
       "command": ["npx", "-y", "@krazor/shadcn-mcp"],
       "enabled": true
+    },
+    "convex": {
+      "type": "local",
+      "command": ["npx", "-y", "convex@latest", "mcp", "start"],
+      "enabled": true
+    },
+    "github": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-github"],
+      "environment": {
+        "GITHUB_TOKEN": "{env:GITHUB_TOKEN}"
+      },
+      "enabled": true
     }
+  },
+  "permission": {
+    "edit": "ask",
+    "bash": "ask"
   }
 }
