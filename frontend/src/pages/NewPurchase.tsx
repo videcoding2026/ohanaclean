@@ -1,13 +1,13 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../convex/_generated/api"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogClose } from "@/components/ui/dialog"
-import { ArrowLeft, Plus, Trash2, Factory, Store, Check, ShoppingCart, Clock, XIcon } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Factory, Store, Check, ShoppingCart, Clock, XIcon, CheckCircle } from "lucide-react"
 import { maskDecimal, maskMoney } from "@/lib/masks"
 import { toast } from "sonner"
 
@@ -24,6 +24,11 @@ const emptyForm = () => ({
 
 export default function NewPurchasePage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const editId = searchParams.get("edit")
+  const confirmId = searchParams.get("confirm")
+  const isEditing = !!editId
+
   const [tipo, setTipo] = useState<"direto" | "marketplace">("direto")
   const [form, setForm] = useState(emptyForm())
   const [items, setItems] = useState<any[]>([])
@@ -31,10 +36,63 @@ export default function NewPurchasePage() {
   const [saving, setSaving] = useState(false)
   const [valOpen, setValOpen] = useState(false)
   const [valErrors, setValErrors] = useState<string[]>([])
+  const [formLoaded, setFormLoaded] = useState(false)
+  const [successOpen, setSuccessOpen] = useState(false)
+  const [successData, setSuccessData] = useState({ tipo: "", total: 0 })
+
+  const purchaseToEdit = useQuery(api.purchases.get, editId ? { purchaseId: editId as any } : "skip")
+  const itemsToEdit = useQuery(api.purchases.listItems, editId ? { purchaseId: editId as any } : "skip")
+  const confirmPurchase = useQuery(api.purchases.get, confirmId ? { purchaseId: confirmId as any } : "skip")
+  const confirmItems = useQuery(api.purchases.listItems, confirmId ? { purchaseId: confirmId as any } : "skip")
+
+  useEffect(() => {
+    if (editId && purchaseToEdit && itemsToEdit && !formLoaded) {
+      setTipo(purchaseToEdit.tipo || "direto")
+      setForm({
+        fornecedorId: purchaseToEdit.fornecedorId || "",
+        dataCompra: purchaseToEdit.dataCompra || Date.now(),
+        numeroNota: purchaseToEdit.numeroNota || "",
+        tipoPagamento: purchaseToEdit.tipoPagamento || "",
+        condPagamento: purchaseToEdit.condPagamento || "",
+        freteGratis: purchaseToEdit.freteGratis || false,
+        frete: purchaseToEdit.frete || 0,
+        observacoes: purchaseToEdit.observacoes || "",
+      })
+      setItems(itemsToEdit.map((i: any) => ({
+        key: i._id, insumoId: i.insumoId, varianteId: i.varianteId,
+        quantidade: i.quantidade, precoUnitario: i.precoUnitario,
+        subtotal: i.subtotal, unidade: i.unidade,
+        nome: "", vrtNome: null,
+      })))
+      setFormLoaded(true)
+    }
+    if (confirmId && confirmPurchase && confirmItems && !formLoaded) {
+      setTipo("direto")
+      setForm({
+        fornecedorId: confirmPurchase.fornecedorId || "",
+        dataCompra: confirmPurchase.dataCompra || Date.now(),
+        numeroNota: confirmPurchase.numeroNota || "",
+        tipoPagamento: confirmPurchase.tipoPagamento || "",
+        condPagamento: confirmPurchase.condPagamento || "",
+        freteGratis: confirmPurchase.freteGratis || false,
+        frete: confirmPurchase.frete || 0,
+        observacoes: confirmPurchase.observacoes || "",
+      })
+      setItems(confirmItems.map((i: any) => ({
+        key: i._id, insumoId: i.insumoId, varianteId: i.varianteId,
+        quantidade: i.quantidade, precoUnitario: i.precoUnitario,
+        subtotal: i.subtotal, unidade: i.unidade,
+        nome: "", vrtNome: null,
+      })))
+      setFormLoaded(true)
+    }
+  }, [editId, purchaseToEdit, itemsToEdit, confirmId, confirmPurchase, confirmItems, formLoaded])
 
   const suppliers = useQuery(api.suppliers.list, {})
+  const filteredSuppliers = (suppliers ?? []).filter((s: any) => s.supplierType === tipo || !tipo)
   const insumosList = useQuery(api.insumos.list, {})
   const createPurchase = useMutation(api.purchases.create)
+  const updateDraft = useMutation(api.purchases.updateDraft)
   const confirmOrder = useMutation(api.purchases.confirmOrder)
 
   const selectedInsumo = insumosList?.find((i: any) => i._id === ingForm.insumoId)
@@ -82,13 +140,12 @@ export default function NewPurchasePage() {
         quantidade: i.quantidade, precoUnitario: i.precoUnitario, subtotal: i.subtotal,
         unidade: i.unidade || undefined,
       }))
-      await createPurchase({
-        ...form, tipo: tipo,
-        fornecedorId: form.fornecedorId ? form.fornecedorId as any : undefined,
-        items: dataItems,
-        freteGratis: form.freteGratis,
-      })
-      toast.success("Rascunho salvo com sucesso!")
+      const payload = { ...form, tipo: tipo, fornecedorId: form.fornecedorId ? form.fornecedorId as any : undefined, items: dataItems, freteGratis: form.freteGratis }
+      if (editId) {
+        await updateDraft({ purchaseId: editId as any, ...payload })
+      } else {
+        await createPurchase(payload)
+      }
       navigate("/compras")
     } catch (e: any) {
       toast.error(e.message || "Erro ao salvar")
@@ -110,8 +167,8 @@ export default function NewPurchasePage() {
         items: dataItems,
         freteGratis: form.freteGratis,
       })
-      toast.success("Compra registrada com sucesso!")
-      navigate("/compras")
+      setSuccessData({ tipo: "marketplace", total })
+      setSuccessOpen(true)
     } catch (e: any) {
       toast.error(e.message || "Erro ao registrar")
     } finally { setSaving(false) }
@@ -126,15 +183,19 @@ export default function NewPurchasePage() {
         quantidade: i.quantidade, precoUnitario: i.precoUnitario, subtotal: i.subtotal,
         unidade: i.unidade || undefined,
       }))
-      const id = await createPurchase({
-        ...form, tipo: "direto",
-        fornecedorId: form.fornecedorId ? form.fornecedorId as any : undefined,
-        items: dataItems,
-        freteGratis: form.freteGratis,
-      })
-      await confirmOrder({ purchaseId: id as any })
-      toast.success("Pedido confirmado com sucesso!")
-      navigate("/compras")
+      const payload = { ...form, fornecedorId: form.fornecedorId ? form.fornecedorId as any : undefined, items: dataItems, freteGratis: form.freteGratis }
+      if (confirmId) {
+        await updateDraft({ purchaseId: confirmId as any, ...payload, tipo: "direto" })
+        await confirmOrder({ purchaseId: confirmId as any })
+      } else if (editId) {
+        await updateDraft({ purchaseId: editId as any, ...payload, tipo: tipo })
+        await confirmOrder({ purchaseId: editId as any })
+      } else {
+        const id = await createPurchase({ ...payload, tipo: "direto" })
+        await confirmOrder({ purchaseId: id as any })
+      }
+      setSuccessData({ tipo: "direto", total })
+      setSuccessOpen(true)
     } catch (e: any) {
       toast.error(e.message || "Erro ao confirmar")
     } finally { setSaving(false) }
@@ -149,7 +210,7 @@ export default function NewPurchasePage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Suprimentos</h2>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Nova Compra</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{isEditing ? "Editar Rascunho" : confirmId ? "Confirmar Pedido" : "Nova Compra"}</h1>
         </div>
       </div>
 
@@ -182,17 +243,17 @@ export default function NewPurchasePage() {
       {/* Dados da Compra */}
       <div className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-5">
         <p className="text-[10px] font-black uppercase tracking-widest text-primary">Dados da Compra</p>
-        <div className={tipo === "marketplace" ? "opacity-60 pointer-events-none" : ""}>
+        <div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fornecedor *</Label>
               <Select value={form.fornecedorId} onValueChange={(v) => v !== null && setF("fornecedorId", v)}>
                 <SelectTrigger className="h-10 rounded-xl w-full">
                   <span className={`flex-1 text-left truncate ${!form.fornecedorId ? "text-muted-foreground" : "text-foreground"}`}>
-                    {form.fornecedorId ? (suppliers?.find((f: any) => f._id === form.fornecedorId)?.pjNomeFantasia || suppliers?.find((f: any) => f._id === form.fornecedorId)?.pfName) : "Selecionar fornecedor"}
+                    {form.fornecedorId ? (filteredSuppliers?.find((f: any) => f._id === form.fornecedorId)?.pjNomeFantasia || filteredSuppliers?.find((f: any) => f._id === form.fornecedorId)?.pfName) : tipo === "marketplace" ? "Selecionar marketplace" : "Selecionar fornecedor"}
                   </span>
                 </SelectTrigger>
-                <SelectContent className="min-w-[240px]">{(suppliers ?? []).map((f: any) => <SelectItem key={f._id} value={f._id}>{f.pjNomeFantasia || f.pfName || f.telefone}</SelectItem>)}</SelectContent>
+                <SelectContent className="min-w-[240px]">{filteredSuppliers.map((f: any) => <SelectItem key={f._id} value={f._id}>{f.pjNomeFantasia || f.pfName || f.telefone}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
@@ -359,6 +420,30 @@ export default function NewPurchasePage() {
           </div>
           <div className="px-6 py-5"><ul className="space-y-2">{valErrors.map((e) => (<li key={e} className="flex items-center gap-2.5 text-sm text-foreground"><span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />{e}</li>))}</ul></div>
           <div className="px-6 pb-5"><Button className="w-full rounded-xl h-11 shadow-primary-btn" onClick={() => setValOpen(false)}>Entendi</Button></div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Sucesso */}
+      <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
+        <DialogContent className="sm:max-w-[420px] rounded-[32px] border-none shadow-modal p-0 overflow-hidden" showCloseButton={false}>
+          <div className="bg-primary px-6 pt-8 pb-6 text-center">
+            <div className="mx-auto h-14 w-14 rounded-full bg-white/20 flex items-center justify-center mb-4 animate-pulse">
+              <CheckCircle className="h-8 w-8 text-white" />
+            </div>
+            <DialogTitle className="text-2xl font-bold tracking-tight text-white">Compra Registrada!</DialogTitle>
+            <DialogDescription className="text-sm text-white/70 mt-1">
+              {successData.tipo === "marketplace" ? "Compra marketplace registrada com sucesso." : "Pedido confirmado com sucesso."}
+            </DialogDescription>
+          </div>
+          <div className="px-6 py-6 space-y-4">
+            <div className="rounded-2xl bg-muted/50 border border-border p-4 text-center">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Valor Total</p>
+              <p className="mt-1 text-2xl font-bold text-foreground">R$ {successData.total.toFixed(2)}</p>
+            </div>
+          </div>
+          <div className="px-6 pb-6">
+            <Button className="w-full rounded-xl h-11 shadow-primary-btn" onClick={() => navigate("/compras")}>Ir para Lista de Compras</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

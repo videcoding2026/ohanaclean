@@ -1,5 +1,5 @@
 import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Box, Factory, Settings, LogOut, ShieldCheck, Sun, Moon, Palette, Truck, Package, ShoppingCart } from 'lucide-react';
+import { LayoutDashboard, Users, Box, Factory, Settings, LogOut, ShieldCheck, Sun, Moon, Palette, Truck, Package, ShoppingCart, Boxes } from 'lucide-react';
 import { useConvexAuth } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { useTheme } from 'next-themes';
@@ -21,6 +21,10 @@ import NewPurchasePage from './pages/NewPurchase';
 import PurchaseDetailPage from './pages/PurchaseDetail';
 import ReceivePurchasePage from './pages/ReceivePurchase';
 import ReturnPurchasePage from './pages/ReturnPurchase';
+import StockPage from './pages/StockPage';
+import ProductionPage from './pages/ProductionPage';
+import NewProductionPage from './pages/NewProductionPage';
+import ProductionDetailPage from './pages/ProductionDetailPage';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 
@@ -226,6 +230,28 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <ShoppingCart className="h-4 w-4" />
             Compras
           </Link>
+          <Link
+            to="/estoque"
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+              isActive("/estoque")
+                ? "bg-primary text-white shadow-primary-btn"
+                : "text-slate-500 hover:bg-accent hover:text-primary"
+            }`}
+          >
+            <Boxes className="h-4 w-4" />
+            Estoque
+          </Link>
+          <Link
+            to="/producao"
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+              isActive("/producao")
+                ? "bg-primary text-white shadow-primary-btn"
+                : "text-slate-500 hover:bg-accent hover:text-primary"
+            }`}
+          >
+            <Factory className="h-4 w-4" />
+            Producao
+          </Link>
           {isAdmin && (
             <Link
               to="/design-system"
@@ -276,6 +302,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             {isActive("/produtos") && "Produtos"}
             {isActive("/formulas") && "Formulas de Producao"}
             {isActive("/compras") && !location.pathname.includes("/compras/") && "Compras de Insumos"}
+            {isActive("/estoque") && "Controle de Estoque"}
+            {isActive("/producao") && !location.pathname.includes("/producao/") && "Gestao de Producao"}
+            {location.pathname === "/producao/nova" && "Nova Ordem de Producao"}
+            {location.pathname.startsWith("/producao/") && !location.pathname.endsWith("/nova") && "Ordem de Producao"}
             {location.pathname === "/compras/nova" && "Nova Compra"}
             {location.pathname.startsWith("/compras/") && location.pathname.endsWith("/receber") && "Recebimento"}
             {location.pathname.startsWith("/compras/") && location.pathname.endsWith("/devolver") && "Devolucao"}
@@ -391,6 +421,10 @@ function App() {
                   <Route path="/compras/:id" element={<PurchaseDetailPage />} />
                   <Route path="/compras/:id/receber" element={<ReceivePurchasePage />} />
                   <Route path="/compras/:id/devolver" element={<ReturnPurchasePage />} />
+                  <Route path="/estoque" element={<StockPage />} />
+                  <Route path="/producao" element={<ProductionPage />} />
+                  <Route path="/producao/nova" element={<NewProductionPage />} />
+                  <Route path="/producao/:id" element={<ProductionDetailPage />} />
                   <Route path="/settings" element={<CompanySettingsPage />} />
                   <Route path="/design-system" element={<SystemDesignPage />} />
                   <Route path="*" element={<div className="text-slate-400 text-sm italic p-12 text-center bg-card rounded-2xl border border-dashed border-border">Modulo em desenvolvimento...</div>} />

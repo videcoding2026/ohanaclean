@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, ShoppingCart, Store, Factory, Truck, PackageCheck, Clock, AlertTriangle, Ban, Undo2 } from "lucide-react"
+import { Search, Plus, ShoppingCart, Store, Factory, Truck, PackageCheck, Clock, AlertTriangle, Ban, Undo2, ExternalLink, Pencil, Trash2 } from "lucide-react"
 
 const allStatus = ["Rascunho", "Pedida", "Aguardando Pagamento", "Em transito", "Recebida", "Recebida parcialmente", "Cancelada", "Devolvida"]
 
@@ -118,6 +118,7 @@ export default function PurchasesPage() {
                 <TableHead className="text-[#3B4280] dark:text-foreground text-xs uppercase tracking-wider font-bold">Tipo</TableHead>
                 <TableHead className="text-[#3B4280] dark:text-foreground text-xs uppercase tracking-wider font-bold">Total</TableHead>
                 <TableHead className="text-[#3B4280] dark:text-foreground text-xs uppercase tracking-wider font-bold">Status</TableHead>
+                <TableHead className="text-[#3B4280] dark:text-foreground text-xs uppercase tracking-wider font-bold w-24">Acoes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -126,7 +127,7 @@ export default function PurchasesPage() {
                 return (
                   <TableRow
                     key={p._id}
-                    className="even:bg-[#FAFBFF] odd:bg-white dark:even:bg-muted/10 dark:odd:bg-card border-b border-[#EEF1FF] dark:border-border cursor-pointer hover:bg-accent/30"
+                    className="group/row even:bg-[#FAFBFF] odd:bg-white dark:even:bg-muted/10 dark:odd:bg-card border-b border-[#EEF1FF] dark:border-border cursor-pointer hover:bg-accent/30"
                     onClick={() => navigate(`/compras/${p._id}`)}
                   >
                     <TableCell className="py-3">
@@ -167,6 +168,17 @@ export default function PurchasesPage() {
                       R$ {(p.total || 0).toFixed(2)}
                     </TableCell>
                     <TableCell><StatusBadge status={p.status} /></TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary" onClick={() => navigate(`/compras/${p._id}`)}><ExternalLink className="h-3.5 w-3.5" /></Button>
+                        {(p.status === "Rascunho") && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary" onClick={() => navigate(`/compras/nova?edit=${p._id}`)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        )}
+                        {(p.status !== "Recebida" && p.status !== "Recebida parcialmente" && p.status !== "Devolvida" && p.status !== "Cancelada") && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive" onClick={() => navigate(`/compras/${p._id}`)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 )
               })}

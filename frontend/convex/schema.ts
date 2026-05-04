@@ -271,6 +271,7 @@ export default defineSchema(
       estoqueMinimo: v.optional(v.number()),
       estoqueMaximo: v.optional(v.number()),
       quantidade: v.optional(v.number()),
+      reservado: v.optional(v.number()),
       localizacao: v.optional(v.string()),
       fornecedorPreferencialId: v.optional(v.string()),
       precoMedio: v.optional(v.number()),
@@ -312,6 +313,10 @@ export default defineSchema(
       margem: v.optional(v.number()),
       precoSugerido: v.optional(v.number()),
       precoVenda: v.optional(v.number()),
+      quantidade: v.optional(v.number()),
+      quantidadeMinima: v.optional(v.number()),
+      quantidadeMaxima: v.optional(v.number()),
+      localizacao: v.optional(v.string()),
       status: v.union(v.literal("Ativa"), v.literal("Inativa")),
       createdAt: v.optional(v.number()),
       updatedAt: v.number(),
@@ -451,6 +456,121 @@ export default defineSchema(
       .index("by_purchaseId", ["purchaseId"])
       .index("by_status", ["status"])
       .index("by_dataVencimento", ["dataVencimento"]),
+
+    stockMovements: defineTable({
+      itemType: v.union(v.literal("insumo"), v.literal("produto")),
+      insumoId: v.optional(v.id("insumos")),
+      varianteId: v.optional(v.id("insumoVariants")),
+      productId: v.optional(v.id("products")),
+      productPackagingId: v.optional(v.id("productPackagings")),
+      tipo: v.union(v.literal("entrada"), v.literal("saida"), v.literal("ajuste"), v.literal("transferencia")),
+      quantidade: v.number(),
+      saldoAnterior: v.number(),
+      saldoAtual: v.number(),
+      origem: v.optional(v.union(v.literal("compra"), v.literal("devolucao"), v.literal("producao"), v.literal("venda"), v.literal("descarte"), v.literal("ajuste_manual"), v.literal("fracionamento"), v.literal("amostra"))),
+      referenciaId: v.optional(v.string()),
+      localOrigem: v.optional(v.string()),
+      localDestino: v.optional(v.string()),
+      observacao: v.optional(v.string()),
+      userId: v.optional(v.string()),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.number(),
+    })
+      .index("by_insumoId", ["insumoId"])
+      .index("by_varianteId", ["varianteId"])
+      .index("by_productId", ["productId"])
+      .index("by_productPackagingId", ["productPackagingId"])
+      .index("by_itemType", ["itemType"])
+      .index("by_tipo", ["tipo"])
+      .index("by_origem", ["origem"]),
+
+    inventarios: defineTable({
+      escopo: v.union(v.literal("completo"), v.literal("insumos"), v.literal("produtos")),
+      status: v.union(v.literal("em_andamento"), v.literal("conferencia"), v.literal("aprovado")),
+      dataInicio: v.number(),
+      dataFim: v.optional(v.number()),
+      aprovadoPor: v.optional(v.string()),
+      totalItens: v.optional(v.number()),
+      itensContados: v.optional(v.number()),
+      diferencias: v.optional(v.number()),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.number(),
+    })
+      .index("by_status", ["status"]),
+
+    inventarioItems: defineTable({
+      inventarioId: v.id("inventarios"),
+      itemType: v.union(v.literal("insumo"), v.literal("produto")),
+      varianteId: v.optional(v.id("insumoVariants")),
+      productPackagingId: v.optional(v.id("productPackagings")),
+      nome: v.optional(v.string()),
+      unidade: v.optional(v.string()),
+      saldoSistema: v.number(),
+      quantidadeFisica: v.optional(v.number()),
+      diferenca: v.optional(v.number()),
+      status: v.union(v.literal("pendente"), v.literal("conferido"), v.literal("ajustado")),
+      observacao: v.optional(v.string()),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.number(),
+    })
+      .index("by_inventarioId", ["inventarioId"]),
+
+    productionOrders: defineTable({
+      numero: v.optional(v.string()),
+      productId: v.id("products"),
+      formulaId: v.id("formulas"),
+      quantidadePlanejada: v.number(),
+      quantidadeProduzida: v.optional(v.number()),
+      dataPrevista: v.optional(v.number()),
+      dataInicio: v.optional(v.number()),
+      dataConclusao: v.optional(v.number()),
+      responsavelId: v.optional(v.string()),
+      responsavelNome: v.optional(v.string()),
+      status: v.union(v.literal("Planejada"), v.literal("Em andamento"), v.literal("Concluida"), v.literal("Cancelada"), v.literal("Quarentena")),
+      observacoes: v.optional(v.string()),
+      rendimento: v.optional(v.number()),
+      custoTotal: v.optional(v.number()),
+      custoUnitario: v.optional(v.number()),
+      lote: v.optional(v.string()),
+      dataFabricacao: v.optional(v.number()),
+      dataValidade: v.optional(v.string()),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.number(),
+    })
+      .index("by_status", ["status"])
+      .index("by_productId", ["productId"])
+      .index("by_numero", ["numero"]),
+
+    productionItems: defineTable({
+      productionOrderId: v.id("productionOrders"),
+      insumoId: v.id("insumos"),
+      varianteId: v.optional(v.id("insumoVariants")),
+      varianteSubstitutaId: v.optional(v.id("insumoVariants")),
+      proporcaoSubstituicao: v.optional(v.number()),
+      quantidadePrevista: v.number(),
+      quantidadeReal: v.optional(v.number()),
+      justificativa: v.optional(v.string()),
+      ordem: v.number(),
+      checked: v.optional(v.boolean()),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.number(),
+    })
+      .index("by_productionOrderId", ["productionOrderId"]),
+
+    productionLogs: defineTable({
+      productionOrderId: v.id("productionOrders"),
+      lote: v.optional(v.string()),
+      dataFabricacao: v.optional(v.number()),
+      dataValidade: v.optional(v.string()),
+      quantidade: v.number(),
+      productPackagingId: v.optional(v.id("productPackagings")),
+      status: v.union(v.literal("aprovado"), v.literal("quarentena"), v.literal("descartado"), v.literal("reprocessado")),
+      observacao: v.optional(v.string()),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.number(),
+    })
+      .index("by_productionOrderId", ["productionOrderId"])
+      .index("by_lote", ["lote"]),
   },
   { schemaValidation: true }
 )

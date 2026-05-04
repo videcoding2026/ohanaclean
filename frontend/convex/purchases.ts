@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server"
 import { v } from "convex/values"
 import { getAuthUserId } from "@convex-dev/auth/server"
+import { logMovement } from "./stock"
 
 async function requireAuth(ctx: any) {
   const userId = await getAuthUserId(ctx)
@@ -63,7 +64,7 @@ async function createContasPagar(ctx: any, purchaseId: any, fornecedorId: any, f
       purchaseId, fornecedorId, fornecedorNome, descricao,
       valor: total,
       dataVencimento: dataCompra,
-      dataPagamento: statusInicial,
+      dataPagamento: statusInicial === "Paga" ? dataCompra : undefined,
       formaPagamento: tipoPagamento,
       status: statusInicial === "Paga" ? "Paga" : "Aberta",
       parcela: "1/1",
@@ -469,6 +470,9 @@ export const receiveItems = mutation({
         updatedAt: Date.now(),
       })
 
+      const variantePre = dbItem.varianteId ? await ctx.db.get(dbItem.varianteId) : null
+      const saldoAnterior = variantePre?.quantidade || 0
+
       await updatePMP(ctx, {
         insumoId: dbItem.insumoId,
         varianteId: dbItem.varianteId,
@@ -476,6 +480,20 @@ export const receiveItems = mutation({
         precoUnitario: dbItem.precoUnitario,
         subtotal: (dbItem.precoUnitario * incoming.quantidadeRecebida),
       }, frete, totalCompra)
+
+      const variantePos = dbItem.varianteId ? await ctx.db.get(dbItem.varianteId) : null
+      await logMovement(ctx, {
+        itemType: "insumo",
+        insumoId: dbItem.insumoId,
+        varianteId: dbItem.varianteId,
+        tipo: "entrada",
+        quantidade: incoming.quantidadeRecebida,
+        saldoAnterior,
+        saldoAtual: variantePos?.quantidade || (saldoAnterior + incoming.quantidadeRecebida),
+        origem: "compra",
+        referenciaId: args.purchaseId,
+        userId,
+      })
     }
 
     if (!algumRecebido) throw new Error("Informe a quantidade recebida para pelo menos um item")
@@ -604,6 +622,19 @@ export const returnItems = mutation({
           quantidade: qtdNova,
           updatedAt: Date.now(),
         } as any)
+        await logMovement(ctx, {
+          itemType: "insumo",
+          insumoId: dbItem.insumoId,
+          varianteId: dbItem.varianteId,
+          tipo: "saida",
+          quantidade: incoming.quantidade,
+          saldoAnterior: qtdAtual,
+          saldoAtual: qtdNova,
+          origem: "devolucao",
+          referenciaId: args.purchaseId,
+          observacao: incoming.motivo,
+          userId,
+        })
       }
     }
 

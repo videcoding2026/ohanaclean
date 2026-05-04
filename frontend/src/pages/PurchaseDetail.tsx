@@ -47,6 +47,7 @@ export default function PurchaseDetailPage() {
   const [payOpen, setPayOpen] = useState(false)
   const [trackOpen, setTrackOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelSuccessOpen, setCancelSuccessOpen] = useState(false)
   const [payData, setPayData] = useState({ dataPagamento: Date.now(), observacao: "" })
   const [trackCode, setTrackCode] = useState("")
   const [cancelMotivo, setCancelMotivo] = useState("")
@@ -89,8 +90,8 @@ export default function PurchaseDetailPage() {
     setSaving(true)
     try {
       await cancelPurchase({ purchaseId, motivo: cancelMotivo })
-      toast.success("Compra cancelada!")
       setCancelOpen(false)
+      setCancelSuccessOpen(true)
     } catch (e: any) { toast.error(e.message) }
     finally { setSaving(false) }
   }
@@ -377,6 +378,33 @@ export default function PurchaseDetailPage() {
           <div className="flex gap-3 px-6 py-4 border-t border-border bg-muted/20">
             <Button variant="outline" className="rounded-xl flex-1 h-11" onClick={() => setCancelOpen(false)}>Voltar</Button>
             <Button onClick={handleCancel} disabled={saving || !cancelMotivo} className="rounded-xl flex-1 h-11 bg-destructive hover:bg-destructive/90 text-white gap-2"><Ban className="h-4 w-4" /> {saving ? "Cancelando..." : "Confirmar Cancelamento"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Cancelamento Sucesso */}
+      <Dialog open={cancelSuccessOpen} onOpenChange={setCancelSuccessOpen}>
+        <DialogContent className="sm:max-w-[420px] rounded-[32px] border-none shadow-modal p-0 overflow-hidden" showCloseButton={false}>
+          <div className="bg-primary px-6 pt-8 pb-6 text-center">
+            <div className="mx-auto h-14 w-14 rounded-full bg-white/20 flex items-center justify-center mb-4 animate-pulse">
+              <Ban className="h-8 w-8 text-white" />
+            </div>
+            <DialogTitle className="text-2xl font-bold tracking-tight text-white">Compra Cancelada</DialogTitle>
+            <DialogDescription className="text-sm text-white/70 mt-1">
+              A compra {purchase.numero || "em rascunho"} foi cancelada com sucesso.
+            </DialogDescription>
+          </div>
+          <div className="px-6 py-4 space-y-3">
+            <div className="rounded-2xl bg-muted/50 border border-border p-3 flex items-center gap-3">
+              <Ban className="h-5 w-5 text-destructive shrink-0" />
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Motivo</p>
+                <p className="text-sm text-foreground">{cancelMotivo}</p>
+              </div>
+            </div>
+          </div>
+          <div className="px-6 pb-6">
+            <Button className="w-full rounded-xl h-11 shadow-primary-btn" onClick={() => navigate("/compras")}>Voltar para Lista</Button>
           </div>
         </DialogContent>
       </Dialog>
