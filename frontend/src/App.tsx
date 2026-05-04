@@ -1,5 +1,5 @@
 import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Box, Factory, Settings, LogOut, ShieldCheck, Sun, Moon, Palette } from 'lucide-react';
+import { LayoutDashboard, Users, Box, Factory, Settings, LogOut, ShieldCheck, Sun, Moon, Palette, Truck, Package, ShoppingCart } from 'lucide-react';
 import { useConvexAuth } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { useTheme } from 'next-themes';
@@ -11,7 +11,17 @@ import CompanySettingsPage from './pages/CompanySettings';
 import UsersPage from './pages/Users';
 import SetupAdminPage from './pages/SetupAdmin';
 import SystemDesignPage from './pages/SystemDesign';
-import { useQuery } from 'convex/react';
+import SuppliersPage from './pages/Suppliers';
+import ClientsPage from './pages/Clients';
+import InsumosPage from './pages/Insumos';
+import ProductsPage from './pages/Products';
+import FormulasPage from './pages/FormulasPage';
+import PurchasesPage from './pages/PurchasesPage';
+import NewPurchasePage from './pages/NewPurchase';
+import PurchaseDetailPage from './pages/PurchaseDetail';
+import ReceivePurchasePage from './pages/ReceivePurchase';
+import ReturnPurchasePage from './pages/ReturnPurchase';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -41,8 +51,28 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function FirstBootCheck({ children }: { children: React.ReactNode }) {
   const getMe = useQuery(api.users.getMe);
   const isEmpty = useQuery(api.users.isEmpty);
+  const ensureProfile = useMutation(api.users.ensureMyProfile);
+  const [creating, setCreating] = useState(false);
 
-  if (getMe === undefined || isEmpty === undefined) return null;
+  useEffect(() => {
+    if (getMe === null && isEmpty !== undefined && !isEmpty && !creating) {
+      setCreating(true);
+      ensureProfile({}).catch(() => {}).finally(() => setCreating(false));
+    }
+  }, [getMe, isEmpty, ensureProfile, creating]);
+
+  if (getMe === undefined || isEmpty === undefined || creating) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-primary-btn animate-pulse">
+            <span className="text-white font-bold text-xs">OC</span>
+          </div>
+          <p className="text-sm text-muted-foreground font-medium">Configurando acesso...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (getMe === null && isEmpty) {
     return <SetupAdminPage />;
@@ -50,6 +80,15 @@ function FirstBootCheck({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
+
+const roleLabels: Record<string, string> = {
+  Admin: "Administrador",
+  Producao: "Producao",
+  Estoque: "Estoque",
+  Vendas: "Vendas",
+  Financeiro: "Financeiro",
+  Visualizador: "Visualizador",
+};
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { signOut } = useAuthActions();
@@ -60,10 +99,12 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => { setMounted(true) }, []);
 
   const company = useQuery(api.companies.get);
-  const logoUrl = useQuery(
-    api.storage.getLogoUrl,
-    company?.logoStorageId ? { storageId: company.logoStorageId } : "skip"
-  );
+  const myProfile = useQuery(api.users.getMe);
+  const logoUrl = company?.logoBase64 ?? null;
+  const isAdmin = myProfile?.role === "Admin";
+  const displayName = myProfile?.fullName ?? "Usuario";
+  const displayRole = roleLabels[myProfile?.role as keyof typeof roleLabels] ?? "";
+  const initials = displayName.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase();
 
   const handleLogout = () => {
     signOut();
@@ -82,7 +123,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               <span className="text-white font-bold text-xs">OC</span>
             </div>
           )}
-          <span className="text-lg font-bold tracking-tight text-foreground">{company?.pjNomeFantasia ?? "Ohana Clean"}</span>
+          <span className="text-lg font-bold tracking-tight text-foreground">{company && typeof company === 'object' ? (company.pjNomeFantasia ?? "Ohana Clean") : "Ohana Clean"}</span>
         </div>
 
         <nav className="flex flex-col gap-1.5">
@@ -102,17 +143,33 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-3">Gestao</p>
           </div>
 
-          <Link
-            to="/usuarios"
-            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
-              isActive("/usuarios")
-                ? "bg-primary text-white shadow-primary-btn"
-                : "text-slate-500 hover:bg-accent hover:text-primary"
-            }`}
-          >
-            <ShieldCheck className="h-4 w-4" />
-            Usuarios
-          </Link>
+          {isAdmin && (
+            <Link
+              to="/usuarios"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                isActive("/usuarios")
+                  ? "bg-primary text-white shadow-primary-btn"
+                  : "text-slate-500 hover:bg-accent hover:text-primary"
+              }`}
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Usuarios
+            </Link>
+          )}
+
+          {(isAdmin || myProfile?.role === "Estoque") && (
+            <Link
+              to="/fornecedores"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                isActive("/fornecedores")
+                  ? "bg-primary text-white shadow-primary-btn"
+                  : "text-slate-500 hover:bg-accent hover:text-primary"
+              }`}
+            >
+              <Truck className="h-4 w-4" />
+              Fornecedores
+            </Link>
+          )}
 
           <Link
             to="/clientes"
@@ -137,6 +194,17 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             Insumos
           </Link>
           <Link
+            to="/produtos"
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+              isActive("/produtos")
+                ? "bg-primary text-white shadow-primary-btn"
+                : "text-slate-500 hover:bg-accent hover:text-primary"
+            }`}
+          >
+            <Package className="h-4 w-4" />
+            Produtos
+          </Link>
+          <Link
             to="/formulas"
             className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
               isActive("/formulas")
@@ -148,30 +216,45 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             Formulas
           </Link>
           <Link
-            to="/design-system"
+            to="/compras"
             className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
-              isActive("/design-system")
+              isActive("/compras")
                 ? "bg-primary text-white shadow-primary-btn"
                 : "text-slate-500 hover:bg-accent hover:text-primary"
             }`}
           >
-            <Palette className="h-4 w-4" />
-            Design System
+            <ShoppingCart className="h-4 w-4" />
+            Compras
           </Link>
+          {isAdmin && (
+            <Link
+              to="/design-system"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                isActive("/design-system")
+                  ? "bg-primary text-white shadow-primary-btn"
+                  : "text-slate-500 hover:bg-accent hover:text-primary"
+              }`}
+            >
+              <Palette className="h-4 w-4" />
+              Design System
+            </Link>
+          )}
         </nav>
 
         <div className="mt-auto space-y-1">
-          <Link
-            to="/settings"
-            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
-              isActive("/settings")
-                ? "bg-primary text-white shadow-primary-btn"
-                : "text-slate-500 hover:bg-accent hover:text-primary"
-            }`}
-          >
-            <Settings className="h-4 w-4" />
-            Configuracoes
-          </Link>
+          {isAdmin && (
+            <Link
+              to="/settings"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                isActive("/settings")
+                  ? "bg-primary text-white shadow-primary-btn"
+                  : "text-slate-500 hover:bg-accent hover:text-primary"
+              }`}
+            >
+              <Settings className="h-4 w-4" />
+              Configuracoes
+            </Link>
+          )}
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all"
@@ -187,9 +270,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           <h1 className="text-lg font-bold tracking-tight text-foreground">
             {isActive("/") && "Dashboard"}
             {isActive("/usuarios") && "Gestao de Usuarios"}
+            {isActive("/fornecedores") && "Fornecedores"}
             {isActive("/clientes") && "Gestao de Clientes"}
             {isActive("/insumos") && "Controle de Insumos"}
+            {isActive("/produtos") && "Produtos"}
             {isActive("/formulas") && "Formulas de Producao"}
+            {isActive("/compras") && !location.pathname.includes("/compras/") && "Compras de Insumos"}
+            {location.pathname === "/compras/nova" && "Nova Compra"}
+            {location.pathname.startsWith("/compras/") && location.pathname.endsWith("/receber") && "Recebimento"}
+            {location.pathname.startsWith("/compras/") && location.pathname.endsWith("/devolver") && "Devolucao"}
+            {location.pathname.match(/^\/compras\/[^/]+$/) && "Detalhes da Compra"}
             {isActive("/design-system") && "Design System"}
             {isActive("/settings") && "Configuracoes"}
           </h1>
@@ -204,11 +294,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               </button>
             )}
             <div className="flex flex-col items-end mr-2">
-              <span className="text-xs font-bold text-foreground leading-none">Admin Ohana</span>
-              <span className="text-[10px] text-slate-400 font-medium">Administrador</span>
+              <span className="text-xs font-bold text-foreground leading-none">{displayName}</span>
+              <span className="text-[10px] text-muted-foreground font-medium">{displayRole}</span>
             </div>
             <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shadow-sm">
-              AD
+              {initials}
             </div>
           </div>
         </header>
@@ -291,6 +381,16 @@ function App() {
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/usuarios" element={<UsersPage />} />
+                  <Route path="/fornecedores" element={<SuppliersPage />} />
+                  <Route path="/clientes" element={<ClientsPage />} />
+                  <Route path="/insumos" element={<InsumosPage />} />
+                  <Route path="/produtos" element={<ProductsPage />} />
+                  <Route path="/formulas" element={<FormulasPage />} />
+                  <Route path="/compras" element={<PurchasesPage />} />
+                  <Route path="/compras/nova" element={<NewPurchasePage />} />
+                  <Route path="/compras/:id" element={<PurchaseDetailPage />} />
+                  <Route path="/compras/:id/receber" element={<ReceivePurchasePage />} />
+                  <Route path="/compras/:id/devolver" element={<ReturnPurchasePage />} />
                   <Route path="/settings" element={<CompanySettingsPage />} />
                   <Route path="/design-system" element={<SystemDesignPage />} />
                   <Route path="*" element={<div className="text-slate-400 text-sm italic p-12 text-center bg-card rounded-2xl border border-dashed border-border">Modulo em desenvolvimento...</div>} />

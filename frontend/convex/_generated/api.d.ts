@@ -10,10 +10,15 @@
 
 import type * as audit from "../audit.js";
 import type * as auth from "../auth.js";
-import type * as bootstrap from "../bootstrap.js";
+import type * as clients from "../clients.js";
 import type * as companies from "../companies.js";
+import type * as formulas from "../formulas.js";
 import type * as http from "../http.js";
+import type * as insumos from "../insumos.js";
+import type * as products from "../products.js";
+import type * as purchases from "../purchases.js";
 import type * as storage from "../storage.js";
+import type * as suppliers from "../suppliers.js";
 import type * as users from "../users.js";
 
 import type {
@@ -25,10 +30,15 @@ import type {
 declare const fullApi: ApiFromModules<{
   audit: typeof audit;
   auth: typeof auth;
-  bootstrap: typeof bootstrap;
+  clients: typeof clients;
   companies: typeof companies;
+  formulas: typeof formulas;
   http: typeof http;
+  insumos: typeof insumos;
+  products: typeof products;
+  purchases: typeof purchases;
   storage: typeof storage;
+  suppliers: typeof suppliers;
   users: typeof users;
 }>;
 

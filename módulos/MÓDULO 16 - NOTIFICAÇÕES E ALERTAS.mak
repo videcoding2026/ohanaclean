@@ -48,8 +48,15 @@
 ║  ├── Mudança de nível/score do cliente                     ║
 ║  └── Cliente bloqueado tenta fazer pedido (Admin alerta)  ║
 ║                                                              ║
-║  🏪 COMPRAS (origem: Módulo 08)                             ║
-║  ├── Compra com entrega atrasada                           ║
+║  🏪 COMPRAS (origem: Módulo 09)                             ║
+║  ├── Pedido confirmado (quando status muda para Pedida)     ║
+║  ├── Pagamento pendente (se Aguardando Pagamento)           ║
+║  ├── Boleto próximo do vencimento (se configurado)          ║
+║  ├── Pagamento confirmado                                   ║
+║  ├── Compra em trânsito                                     ║
+║  ├── Compra com entrega atrasada                            ║
+║  ├── Compra recebida (estoque atualizado)                   ║
+║  ├── Devolução registrada                                   ║
 ║  └── Tabela de preço de fornecedor desatualizada (>6m)     ║
 ║                                                              ║
 ║  ⚙️ SISTEMA (origem: Módulo 01 e 03)                       ║

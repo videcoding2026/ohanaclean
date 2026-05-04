@@ -4,6 +4,9 @@
 ╠══════════════════════════════════════════════════════════════╣
 ║  ORIGEM: Fusão de M15 (Ct.Receber) + M16 (Ct.Pagar)        ║
 ║  FUNÇÃO: Recebimentos, pagamentos e fluxo de caixa          ║
+║  ⚠️ ATUALIZAÇÃO: Integração com Compras ajustada           ║
+║    - Contas a Pagar: geradas ao CONFIRMAR PEDIDO (M09)     ║
+║    - Não mais ao RECEBER (mudança de regra)                ║
 ╚══════════════════════════════════════════════════════════════╝
 
 ╔══════════════════════════════════════════════════════════════╗
@@ -38,8 +41,10 @@
 ╠══════════════════════════════════════════════════════════════╣
 ║ ABA 02 - CONTAS A PAGAR                                     ║
 ╠══════════════════════════════════════════════════════════════╣
-║  ├── Geração automática ao RECEBER compra (Módulo 09)       ║
-║  │   Regra fixa: status = "Recebida" (não em "Pedida")     ║
+║  ├── Geração automática ao CONFIRMAR PEDIDO (Módulo 09)     ║
+║  │   ⚠️ ATUALIZADO: antes era "ao RECEBER", agora é       ║
+║  │   "ao CONFIRMAR PEDIDO" (a dívida existe no pedido)     ║
+║  │   Status inicial: Paga (PIX/cartão) ou Aberta (boleto)  ║
 ║  ├── Parcelamento: à vista | 30d | 30/60d | parcelado       ║
 ║  ├── Lançamentos manuais (aluguel, energia, serviços)       ║
 ║  │                                                          ║

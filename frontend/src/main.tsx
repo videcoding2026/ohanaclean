@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { ConvexProvider, ConvexReactClient } from "convex/react"
 import { ConvexAuthProvider } from "@convex-dev/auth/react"
 import { ThemeProvider } from 'next-themes'
+import { Toaster } from 'sonner'
 import './index.css'
 import App from './App.tsx'
 
@@ -20,6 +21,7 @@ createRoot(document.getElementById('root')!).render(
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           <BrowserRouter>
             <App />
+            <Toaster position="top-right" richColors />
           </BrowserRouter>
         </ThemeProvider>
       </ConvexAuthProvider>

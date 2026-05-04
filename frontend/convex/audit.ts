@@ -13,6 +13,6 @@ export const list = query({
     if (!profile || profile.role !== "Admin") {
       throw new Error("Apenas Admin pode acessar logs")
     }
-    return await ctx.db.query("auditLogs").order("desc").take(100)
+    return await ctx.db.query("auditLogs").withIndex("by_timestamp").order("desc").take(100)
   },
 })

@@ -1,14 +1,16 @@
 ╔══════════════════════════════════════════════════════════════╗
-║            MÓDULO 08 - COMPRAS DE INSUMOS                   ║
-║               ✅ FECHADO - VERSÃO ATUALIZADA                 ║
+║            MÓDULO 09 - COMPRAS DE INSUMOS                   ║
+║          ✅ ATUALIZADO - FLUXO DE STATUS COMPLETO            ║
 ╠══════════════════════════════════════════════════════════════╣
 ║                                                              ║
 ║  FUNÇÃO: Registrar e controlar compras de insumos           ║
+║          com fluxo completo de status e timeline             ║
 ║                                                              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║ DADOS DA COMPRA                                              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  ├── Número automático (CMP-26-0001)                        ║
+║  │   └── Gerado ao confirmar pedido (não no rascunho)       ║
 ║  ├── Data da compra                  (obrigatório)          ║
 ║  ├── Fornecedor                      (obrigatório)          ║
 ║  ├── Tipo: 🏭 Direto | 🛍️ Marketplace                      ║
@@ -81,6 +83,72 @@
 ║           Deseja adicionar?"                               ║
 ║                                                              ║
 ╠══════════════════════════════════════════════════════════════╣
+║ STATUS DA COMPRA (fluxo completo)                            ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  FLUXO FORNECEDOR DIRETO:                                    ║
+║  🟫 Rascunho → 🟡 Pedida → 🟠 Aguardando Pagamento          ║
+║                           → 🔵 Em trânsito → 🟢 Recebida    ║
+║                                            → ⚠️ Receb. Parc ║
+║                                            → ❌ Cancelada     ║
+║                              🟢 Recebida → 🔴 Devolvida      ║
+║                                                              ║
+║  FLUXO MARKETPLACE:                                          ║
+║  🟡 Pedida → 🔵 Em trânsito → 🟢 Recebida                  ║
+║                                            → ⚠️ Receb. Parc ║
+║                                            → ❌ Cancelada     ║
+║                              🟢 Recebida → 🔴 Devolvida      ║
+║                                                              ║
+║  🟫 Rascunho: Compra editável, sem efeitos colaterais       ║
+║              Delete permitido, não gera Contas a Pagar       ║
+║              Ações: [Editar] [Confirmar Pedido] [Cancelar]   ║
+║                                                              ║
+║  🟡 Pedida: Compra confirmada, não editável                  ║
+║            Gera Contas a Pagar automaticamente                ║
+║            Ações: [Confirmar Pagamento] [Rastreio]           ║
+║                    [Receber] [Cancelar]                       ║
+║                                                              ║
+║  🟠 Aguardando Pagamento: Boleto/TED pendente                ║
+║           Ações: [Confirmar Pagamento] [Rastreio] [Cancelar] ║
+║                                                              ║
+║  🔵 Em trânsito: A caminho do destinatário                   ║
+║          Ações: [Rastreio] [Receber] [Cancelar]               ║
+║                                                              ║
+║  🟢 Recebida: Tudo conforme                                  ║
+║     ├── Estoque atualizado por variante                      ║
+║     ├── PMP recalculado por variante                         ║
+║     └── Ações: [Devolver] [Avaliar fornecedor]              ║
+║                                                              ║
+║  ⚠️ Recebida Parcialmente: Parte dos itens chegou            ║
+║     ├── Itens recebidos → estoque + PMP                     ║
+║     ├── Itens pendentes → aguardando                        ║
+║     ├── NÃO pode cancelar (já tem estoque)                  ║
+║     └── Ações: [Receber Pendentes] [Devolver]               ║
+║                                                              ║
+║  ❌ Cancelada: Compra cancelada                               ║
+║     ├── Se Rascunho → delete físico (sem efeitos)            ║
+║     ├── Se Pedida/Aguardando/Trânsito → estorna Contas      ║
+║     ├── Se já recebeu (parcial/total) → não pode cancelar   ║
+║     └── Motivo do cancelamento obrigatório                   ║
+║                                                              ║
+║  🔴 Devolvida: Todos os itens devolvidos                     ║
+║     ├── Baixa automática no estoque                          ║
+║     ├── Ajuste no PMP                                        ║
+║     └── Registro em purchaseReturns                          ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║ TIMELINE / HISTÓRICO DE STATUS                              ║
+╠══════════════════════════════════════════════════════════════╣
+║  ├── Registro automático em purchaseHistories               ║
+║  ├── Cada transição registra:                               ║
+║  │   ├── Status anterior → Status novo                      ║
+║  │   ├── Data e hora                                        ║
+║  │   ├── Usuário responsável                               ║
+║  │   ├── Observação                                        ║
+║  │   └── Se foi automático ou manual                       ║
+║  └── Visualizado como timeline na tela de detalhes          ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
 ║ CUSTO REAL POR VARIANTE                                      ║
 ╠══════════════════════════════════════════════════════════════╣
 ║                                                              ║
@@ -97,6 +165,7 @@
 ║  ├── SE MARKETPLACE:                                        ║
 ║  │   ├── 💳 Cartão de crédito (1x a 12x)                  ║
 ║  │   └── 📱 PIX                                            ║
+║  │   └── Já nasce como Pedida (pagamento já feito)         ║
 ║  │                                                          ║
 ║  ├── SE FORNECEDOR DIRETO:                                  ║
 ║  │   ├── 💳 Cartão de crédito/débito                      ║
@@ -104,24 +173,22 @@
 ║  │   ├── 📄 Boleto bancário                               ║
 ║  │   ├── 🏦 Transferência bancária                        ║
 ║  │   └── 💵 Dinheiro                                       ║
+║  │   └── Nasce como Rascunho (precisa confirmar)          ║
 ║  │                                                          ║
-║  └── Pré-preenchido com condições do fornecedor            ║
-║      (alterável se necessário)                              ║
-║                                                              ║
-╠══════════════════════════════════════════════════════════════╣
-║ STATUS DA COMPRA                                             ║
-╠══════════════════════════════════════════════════════════════╣
-║  ├── 🟡 Pedida (aguardando entrega)                         ║
-║  ├── 🔵 Em trânsito                                         ║
-║  ├── 🟢 Recebida                                            ║
-║  ├── ⚠️ Recebida parcialmente                               ║
-║  └── ❌ Cancelada / Devolvida                               ║
+║  └── Regra de status por pagamento:                         ║
+║      ├── PIX / Cartão débito / Dinheiro → já pago           ║
+║      │   └── Rascunho → Confirmar → Pedida → Em trânsito   ║
+║      ├── Cartão crédito → já pago (parcelado)              ║
+║      │   └── Rascunho → Confirmar → Pedida → Em trânsito   ║
+║      └── Boleto / Transferência → pagamento pendente       ║
+║          └── Rascunho → Confirmar → Aguardando Pagamento    ║
+║              → Confirmar Pagamento → Em trânsito            ║
 ║                                                              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║ RECEBIMENTO DA COMPRA                                        ║
 ╠══════════════════════════════════════════════════════════════╣
-║  ├── Botão "✅ Receber Tudo Conforme" (rápido)              ║
-║  ├── Ou conferência item por item / variante                ║
+║  ├── Botão "✅ Preencher Tudo Conforme" (rápido)            ║
+║  ├── Conferência item por item / variante                   ║
 ║  ├── Data de recebimento                                    ║
 ║  ├── Quantidade recebida por variante                       ║
 ║  │   └── (pré-preenchida com o pedido)                     ║
@@ -133,30 +200,54 @@
 ║      │       Essência Limão  +1L no estoque               ║
 ║      ├── ✅ Atualização do PMP da variante                  ║
 ║      │   (incluindo frete proporcional)                     ║
-║      ├── ✅ Status → Recebida                               ║
+║      ├── ✅ Item → status "recebido"                        ║
+║      ├── ✅ Se todos → Status → 🟢 Recebida                 ║
+║      ├── ✅ Se parcial → Status → ⚠️ Recebida Parcial        ║
 ║      └── ✅ Convite para avaliar fornecedor                 ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║ CONFIRMAÇÃO DE PAGAMENTO (manual)                            ║
+╠══════════════════════════════════════════════════════════════╣
+║  ├── Modal com:                                             ║
+║  │   ├── Data do pagamento (obrigatório)                   ║
+║  │   ├── Comprovante (opcional, upload)                    ║
+║  │   └── Observação (opcional)                             ║
+║  ├── Atualiza Contas a Pagar → status "Paga"              ║
+║  └── Status → 🔵 Em trânsito                                ║
 ║                                                              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║ GERAÇÃO AUTOMÁTICA - CONTAS A PAGAR                         ║
 ╠══════════════════════════════════════════════════════════════╣
-║  ├── PIX / À vista: 1 lançamento na data                    ║
-║  └── Cartão parcelado: N lançamentos mensais                ║
-║      com datas de vencimento automáticas                    ║
+║  ├── Geradas ao CONFIRMAR PEDIDO (não ao receber!)          ║
+║  ├── PIX / À vista: 1 lançamento na data, status "Paga"     ║
+║  ├── Cartão parcelado: N lançamentos mensais, status "Paga" ║
+║  │   com datas de vencimento automáticas                    ║
+║  ├── Boleto: 1 lançamento, status "Aberta"                 ║
+║  └── Ao confirmar pagamento: atualiza status para "Paga"    ║
 ║                                                              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║ DEVOLUÇÃO DE COMPRA                                          ║
 ╠══════════════════════════════════════════════════════════════╣
-║  ├── Vínculo com compra original                            ║
+║  ├── Só disponível se Recebida ou Recebida Parcial          ║
 ║  ├── Seleção da variante a devolver:                        ║
 ║  │   Ex: devolver somente "Essência Floral"                ║
 ║  │       mantendo "Essência Limão" da mesma compra         ║
 ║  ├── Quantidade devolvida por variante                      ║
-║  ├── Motivo da devolução                                    ║
+║  │   └── Máximo = quantidade já recebida                    ║
+║  ├── Motivo da devolução (dropdown):                        ║
+║  │   ├── Produto com defeito                               ║
+║  │   ├── Produto errado                                    ║
+║  │   ├── Avaria no transporte                              ║
+║  │   ├── Fora do prazo                                     ║
+║  │   ├── Arrependimento                                    ║
+║  │   └── Outro (texto livre)                               ║
 ║  ├── Resolução: reenvio | crédito | estorno                 ║
 ║  └── AO CONFIRMAR:                                          ║
 ║      ├── Baixa automática na variante devolvida             ║
 ║      ├── Ajuste no PMP da variante                         ║
-║      └── Ajuste na conta a pagar                            ║
+║      ├── Registro em purchaseReturns                       ║
+║      ├── Se todos devolvidos → Status 🔴 Devolvida          ║
+║      └── Se parcial → mantém status anterior               ║
 ║                                                              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║ LISTA DE COMPRAS SUGERIDAS POR VARIANTE                     ║
@@ -190,45 +281,66 @@
 ║ INTEGRAÇÕES COM OUTROS MÓDULOS                               ║
 ╠══════════════════════════════════════════════════════════════╣
 ║                                                              ║
-║  ├── Módulo 04 (Fornecedores): Dados do fornecedor,        ║
-║  │   condições de pagamento e tabela de preços.            ║
-║  ├── Módulo 07 (Insumos): Estrutura insumo pai + variante; ║
-║  │   validação de variante ativa; atualização de estoque   ║
-║  │   e PMP da variante comprada.                           ║
-║  ├── Módulo 10 (Estoque de Insumos): Entrada de estoque    ║
-║  │   via recebimento; movimentações e lotes.               ║
-║  ├── Módulo 16 (Contas a Pagar): Geração automática de     ║
-║  │   lançamentos financeiros conforme condição de pgto.    ║
-║  ├── Módulo 19 (Notificações): Alertas de compra atrasada, ║
-║  │   tabela desatualizada, variante inativa.               ║
-║  └── Módulo 20 (Logs): Registro de criação, recebimento    ║
-║      e devolução de compras.                               ║
+║  ├── M04 (Fornecedores): Dados do fornecedor, cond. pgto    ║
+║  ├── M05 (Insumos): Estrutura insumo pai + variante;        ║
+║  │   validação de variante ativa; atualização de estoque    ║
+║  │   e PMP da variante comprada via campo quantidade.       ║
+║  ├── M10 (Estoque): Entrada de estoque via recebimento;     ║
+║  │   baixa de estoque via devolução; movimentações.         ║
+║  ├── M14 (Financeiro): Geração automática de Contas a Pagar ║
+║  │   ao CONFIRMAR PEDIDO. Atualização ao confirmar pgto.   ║
+║  │   Estorno ao cancelar. Ajuste na devolução.              ║
+║  ├── M16 (Notificações): Alertas de compra atrasada,        ║
+║  │   pagamento pendente, recebimento, boleto vencendo.      ║
+║  └── M17 (Logs): Registro de todas as transições de status, ║
+║      criação, recebimento e devolução de compras.           ║
 ║                                                              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║ LISTA DE COMPRAS                                             ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  ├── Busca por número / fornecedor / insumo / variante      ║
-║  ├── Filtro por status / período / tipo                     ║
+║  ├── Filtro por status / período / tipo (direto|marketplace)║
+║  ├── KPIs: Total no período, Pendentes, Recebidas           ║
 ║  ├── Total comprado no período (R$)                         ║
 ║  └── Exportar (Excel / PDF)                                 ║
 ║                                                              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║ TELAS                                                        ║
 ╠══════════════════════════════════════════════════════════════╣
-║  ├── 🖥️ Lista de Compras                                    ║
-║  ├── 🖥️ Nova Compra                                         ║
-║  │   └── Com seleção insumo + variante                      ║
-║  ├── 🖥️ Detalhe da Compra                                   ║
-║  │   └── Com detalhamento por variante                      ║
-║  ├── 🖥️ Recebimento de Compra                               ║
-║  │   └── Conferência por variante                           ║
-║  ├── 🖥️ Devolução de Compra                                 ║
-║  │   └── Seleção de variante a devolver                     ║
-║  └── 🖥️ Lista de Compras Sugeridas                          ║
+║  ├── 🖥️ Lista de Compras        (/compras)                 ║
+║  │   └── KPIs + filtros + tabela com status badges         ║
+║  ├── 🖥️ Nova Compra              (/compras/nova)           ║
+║  │   ├── Toggle: Direto vs Marketplace                     ║
+║  │   ├── Seleção insumo + variante                         ║
+║  │   ├── Frete grátis / valor                              ║
+║  │   └── Botões: Salvar Rascunho + Confirmar Pedido        ║
+║  │       (Marketplace: só "Registrar Compra")              ║
+║  ├── 🖥️ Detalhe da Compra        (/compras/:id)           ║
+║  │   ├── Dados + Itens + Contas a Pagar                    ║
+║  │   ├── Timeline de status                                ║
+║  │   ├── Ações por status (botões condicionais)            ║
+║  │   └── Modais: Confirmar Pagamento / Rastreio / Cancelar ║
+║  ├── 🖥️ Recebimento de Compra    (/compras/:id/receber)   ║
+║  │   ├── Preencher Tudo Conforme                           ║
+║  │   ├── Conferência por variante (qtd recebida)           ║
+║  │   └── Data do recebimento + observação                  ║
+║  ├── 🖥️ Devolução de Compra     (/compras/:id/devolver)   ║
+║  │   ├── Seleção de itens recebidos                        ║
+║  │   ├── Qtd, motivo, resolução por item                   ║
+║  │   └── Confirmação com baixa no estoque                  ║
+║  └── 🖥️ Lista de Compras Sugeridas (futuro)               ║
 ║      └── Agrupada por variante                              ║
 ║                                                              ║
 ╠══════════════════════════════════════════════════════════════╣
-║ COMPLEXIDADE: ⭐⭐⭐ Média                                    ║
-║ (mantida - variantes agregam lógica mas                     ║
-║  não aumentam complexidade estrutural)                      ║
+║ MODELO DE DADOS                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║  ┌── purchases (compra principal)                           ║
+║  │   ├── purchaseItems (itens da compra)                   ║
+║  │   ├── purchaseHistories (timeline de status)            ║
+║  │   ├── purchaseReturns (devoluções)                      ║
+║  │   └── contasPagar (vinculadas à compra)                 ║
+║  └── insumoVariants.quantidade (estoque da variante)       ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║ COMPLEXIDADE: ⭐⭐⭐⭐ Alta (subiu com fluxo de status)     ║
 ╚══════════════════════════════════════════════════════════════╝

@@ -1,7 +1,7 @@
 export default {
   providers: [
     {
-      domain: "https://steady-owl-944.convex.site",
+      domain: process.env.VITE_CONVEX_SITE_URL || "http://localhost:5173",
       applicationID: "convex",
     },
   ],

@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server"
+import { mutation, query, internalQuery } from "./_generated/server"
 import { v } from "convex/values"
 import { getAuthUserId } from "@convex-dev/auth/server"
 import type { MutationCtx } from "./_generated/server"
@@ -18,9 +18,10 @@ async function requireAdmin(ctx: MutationCtx) {
 
 async function upsertCompany(ctx: MutationCtx, data: Record<string, unknown>) {
   const existing = await ctx.db.query("companies").first()
-  const merged = { ...data, updatedAt: Date.now() }
+  const defaults: Record<string, unknown> = { type: "PJ", telefone: "", email: "", pjNomeFantasia: "" }
+  const merged = { ...defaults, ...data, updatedAt: Date.now() }
   if (existing) {
-    await ctx.db.patch(existing._id, merged)
+    await ctx.db.patch(existing._id, merged as any)
   } else {
     await ctx.db.insert("companies", { ...merged, createdAt: Date.now() } as any)
   }
@@ -197,10 +198,10 @@ export const saveScore = mutation({
 })
 
 export const saveLogo = mutation({
-  args: { logoStorageId: v.string() },
+  args: { logoBase64: v.string() },
   handler: async (ctx, args) => {
     const { userId } = await requireAdmin(ctx)
-    await upsertCompany(ctx, { logoStorageId: args.logoStorageId })
+    await upsertCompany(ctx, { logoBase64: args.logoBase64 })
     await ctx.db.insert("auditLogs", {
       userId,
       timestamp: Date.now(),
@@ -209,5 +210,12 @@ export const saveLogo = mutation({
       entity: "Logo",
       description: "Logotipo da empresa atualizado",
     })
+  },
+})
+
+export const getInternal = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("companies").first()
   },
 })

@@ -272,6 +272,25 @@ export default function SystemDesignPage() {
                 </Button>
               </div>
             </div>
+
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-4">Toggle Buttons (2+ Opcoes)</p>
+              <div className="flex flex-wrap gap-6">
+                <div className="flex gap-1 p-1 rounded-xl bg-muted/50 border border-border w-fit">
+                  <button className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-primary text-white shadow-primary-btn">Ativo</button>
+                  <button className="px-4 py-1.5 text-xs font-semibold rounded-lg text-muted-foreground hover:text-foreground">Inativo</button>
+                  <button className="px-4 py-1.5 text-xs font-semibold rounded-lg text-muted-foreground hover:text-foreground">Desabilitado</button>
+                </div>
+                <div className="flex gap-1 p-1 rounded-xl bg-muted/50 border border-border w-fit">
+                  <button className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-primary text-white shadow-primary-btn">Direto</button>
+                  <button className="px-4 py-1.5 text-xs font-semibold rounded-lg text-muted-foreground hover:text-foreground">Marketplace</button>
+                </div>
+                <div className="flex gap-1 p-1 rounded-xl bg-muted/50 border border-border w-fit">
+                  <button className="px-4 py-1.5 text-xs font-semibold rounded-lg text-muted-foreground hover:text-foreground">PF</button>
+                  <button className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-primary text-white shadow-primary-btn">PJ</button>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 

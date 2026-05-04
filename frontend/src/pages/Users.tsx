@@ -1,21 +1,20 @@
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserPlus, Search, Shield, Eye, EyeOff, Clock } from "lucide-react";
+import { Search, Shield, Eye, EyeOff, Clock, Pencil, ChevronDown, ChevronUp, Info } from "lucide-react";
 
 interface UserProfile {
   _id: string;
   fullName: string;
   email?: string;
+  phone?: string;
   role: "Admin" | "Producao" | "Estoque" | "Vendas" | "Financeiro" | "Visualizador";
   status: "Ativo" | "Inativo";
   position?: string;
@@ -55,10 +54,14 @@ function getPermissionBadge(value: string) {
 
 export default function UsersPage() {
   const usersQuery = useQuery(api.users.list);
+  const myProfile = useQuery(api.users.getMe);
+  const updateProfile = useMutation(api.users.updateProfile);
+  const isAdmin = myProfile?.role === "Admin";
   const users: UserProfile[] = (usersQuery ?? []).map((u: any) => ({
     _id: u._id,
     fullName: u.fullName,
     email: u.email ?? undefined,
+    phone: u.phone ?? undefined,
     role: u.role,
     status: u.status,
     position: u.position,
@@ -67,12 +70,41 @@ export default function UsersPage() {
     createdAt: u.createdAt,
   }));
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedRole, setSelectedRole] = useState<string>("Admin");
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [showMatrix, setShowMatrix] = useState(false);
 
   const filteredUsers = users.filter(user =>
     user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (user.email ?? "").toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const openEditDialog = (user: UserProfile) => {
+    setEditingUser({ ...user })
+    setEditOpen(true)
+  }
+
+  const handleEditSave = async () => {
+    if (!editingUser) return
+    setEditLoading(true)
+    try {
+      await updateProfile({
+        profileId: editingUser._id as any,
+        fullName: editingUser.fullName,
+        role: editingUser.role,
+        position: editingUser.position,
+        phone: editingUser.phone as any,
+        status: editingUser.status,
+      })
+      setEditOpen(false)
+      setEditingUser(null)
+    } catch (err: any) {
+      alert("Erro ao salvar: " + (err?.message ?? ""))
+    } finally {
+      setEditLoading(false)
+    }
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -82,183 +114,204 @@ export default function UsersPage() {
           <p className="text-muted-foreground text-sm">Gerencie o acesso e as permissoes da sua equipe</p>
         </div>
 
-        <Dialog>
-          <DialogTrigger className="inline-flex items-center justify-center gap-2 rounded-xl h-11 px-4 py-2 text-sm font-bold text-white bg-primary shadow-primary-btn transition-all hover:bg-primary/90">
-            <UserPlus className="h-4 w-4" />
-            Novo Usuario
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[460px] rounded-[32px] border-none shadow-modal bg-card/95 backdrop-blur-md">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold text-foreground">Convidar Usuario</DialogTitle>
-              <DialogDescription>
-                Adicione um novo membro a equipe e defina seu nivel de acesso.
-              </DialogDescription>
+        <div className="flex items-center gap-2 rounded-xl bg-muted/20 border border-border px-3 py-2 text-xs text-muted-foreground">
+          {isAdmin ? (
+            <>
+              <Info className="h-3.5 w-3.5 shrink-0" />
+              <span>Novos usuarios se cadastram via pagina de <strong className="text-foreground">Login</strong>. Depois, clique em um usuario abaixo para editar permissoes.</span>
+            </>
+          ) : (
+            <>
+              <Shield className="h-3.5 w-3.5 shrink-0" />
+              <span>Voce nao tem permissao para gerenciar usuarios. Apenas <strong className="text-foreground">Administradores</strong> podem ver e editar esta lista.</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-[460px] rounded-[32px] border-none shadow-modal p-0 overflow-hidden">
+          <div className="bg-primary px-6 pt-6 pb-4">
+            <DialogHeader className="p-0">
+              <DialogTitle className="text-2xl font-bold tracking-tight text-white">Editar Usuario</DialogTitle>
+              <DialogDescription className="text-sm text-white/70 mt-1">Altere os dados e permissoes do usuario.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
+          </div>
+          {editingUser && (
+            <div className="grid gap-4 px-6 py-4">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Nome Completo</Label>
-                <Input id="name" placeholder="Ex: Maria Pereira" className="rounded-xl" />
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Nome Completo</Label>
+                <Input
+                  value={editingUser.fullName}
+                  onChange={(e) => setEditingUser({ ...editingUser, fullName: e.target.value })}
+                  className="rounded-xl"
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">E-mail</Label>
-                <Input id="email" type="email" placeholder="maria@email.com" className="rounded-xl" />
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Telefone</Label>
+                <Input
+                  value={editingUser.phone ?? ""}
+                  onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value })}
+                  className="rounded-xl"
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Telefone / WhatsApp</Label>
-                <Input id="phone" placeholder="(00) 00000-0000" className="rounded-xl" />
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Cargo</Label>
+                <Input
+                  value={editingUser.position ?? ""}
+                  onChange={(e) => setEditingUser({ ...editingUser, position: e.target.value })}
+                  className="rounded-xl"
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="position" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Cargo / Funcao</Label>
-                <Input id="position" placeholder="Ex: Operador de Producao" className="rounded-xl" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="role" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Perfil de Acesso</Label>
-                <Select value={selectedRole} onValueChange={(v) => v && setSelectedRole(v)}>
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Selecione um perfil" />
-                  </SelectTrigger>
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Perfil de Acesso</Label>
+                <Select value={editingUser.role} onValueChange={(v) => v && setEditingUser({ ...editingUser, role: v as any })}>
+                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent className="rounded-xl border-border shadow-lg">
-                    <SelectItem value="Admin">Administrador</SelectItem>
-                    <SelectItem value="Producao">Producao</SelectItem>
-                    <SelectItem value="Estoque">Estoque</SelectItem>
-                    <SelectItem value="Vendas">Vendas</SelectItem>
-                    <SelectItem value="Financeiro">Financeiro</SelectItem>
-                    <SelectItem value="Visualizador">Visualizador</SelectItem>
+                    {Object.keys(roleConfig).map((r) => <SelectItem key={r} value={r}>{roleConfig[r as keyof typeof roleConfig].label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Status</Label>
+                <Select value={editingUser.status} onValueChange={(v) => v && setEditingUser({ ...editingUser, status: v as any })}>
+                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent className="rounded-xl border-border shadow-lg">
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <DialogFooter>
-              <Button className="w-full rounded-xl bg-primary hover:bg-primary/90 text-white font-bold shadow-primary-btn h-11 transition-all">
-                Enviar Convite
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          )}
+          <div className="px-6 py-4 border-t border-border">
+            <Button onClick={handleEditSave} disabled={editLoading} className="w-full rounded-xl bg-primary text-white font-bold shadow-primary-btn h-11">
+              {editLoading ? "Salvando..." : "Salvar Alteracoes"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <div className="bg-card rounded-2xl shadow-card border border-border overflow-hidden">
+        <div className="p-4 border-b border-border bg-muted/30 flex flex-col md:flex-row md:items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou e-mail..."
+              className="pl-10 h-10 rounded-xl bg-background border-border"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {filteredUsers.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground text-sm">Nenhum usuario encontrado.</div>
+        ) : (
+          <Table>
+            <TableHeader className="bg-[#F0F2FF] dark:bg-muted/50">
+              <TableRow className="hover:bg-transparent border-b border-[#EEF1FF] dark:border-border">
+                <TableHead className="text-[#3B4280] dark:text-foreground font-bold text-xs uppercase tracking-wider h-12">Usuario</TableHead>
+                <TableHead className="text-[#3B4280] dark:text-foreground font-bold text-xs uppercase tracking-wider h-12">Perfil</TableHead>
+                <TableHead className="text-[#3B4280] dark:text-foreground font-bold text-xs uppercase tracking-wider h-12">Valores</TableHead>
+                <TableHead className="text-[#3B4280] dark:text-foreground font-bold text-xs uppercase tracking-wider h-12">Sessao</TableHead>
+                <TableHead className="text-[#3B4280] dark:text-foreground font-bold text-xs uppercase tracking-wider h-12">Status</TableHead>
+                <TableHead className="text-[#3B4280] dark:text-foreground font-bold text-xs uppercase tracking-wider h-12 w-16"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.map((user) => {
+                const config = roleConfig[user.role];
+                return (
+                  <TableRow key={user._id} className="even:bg-[#FAFBFF] odd:bg-white dark:even:bg-muted/10 dark:odd:bg-card border-b border-[#EEF1FF] dark:border-border group cursor-pointer hover:bg-accent/30 transition-colors">
+                    <TableCell className="py-4" onClick={() => openEditDialog(user)}>
+                      <div className="flex items-center gap-3">
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-sm font-bold ${config.color}`}>
+                          {user.fullName.split(" ").map(n => n[0]).slice(0, 2).join("")}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-foreground text-sm leading-none mb-1">{user.fullName}</span>
+                          <span className="text-xs text-muted-foreground font-medium">{user.email}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell onClick={() => openEditDialog(user)}>
+                      <Badge className={`rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${config.color}`}>
+                        {config.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell onClick={() => openEditDialog(user)}>
+                      {config.maskedValues ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <EyeOff className="h-3 w-3" /> Camuflado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-success">
+                          <Eye className="h-3 w-3" /> Visivel
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell onClick={() => openEditDialog(user)}>
+                      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" /> {config.session}
+                      </span>
+                    </TableCell>
+                    <TableCell onClick={() => openEditDialog(user)}>
+                      <Badge className={`rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border-none ${
+                        user.status === "Ativo" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
+                      }`}>{user.status}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-accent" onClick={() => openEditDialog(user)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
-      <Tabs defaultValue="usuarios" className="w-full">
-        <TabsList className="w-full justify-start rounded-xl bg-card border border-border p-1">
-          <TabsTrigger value="usuarios" className="rounded-lg text-xs font-semibold data-[state=active]:bg-primary data-[state=active]:text-white">Usuarios</TabsTrigger>
-          <TabsTrigger value="permissoes" className="rounded-lg text-xs font-semibold data-[state=active]:bg-primary data-[state=active]:text-white">Matriz de Permissoes</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="usuarios" className="mt-6">
-          <div className="bg-card rounded-2xl shadow-card border border-border overflow-hidden">
-            <div className="p-4 border-b border-border bg-muted/30 flex flex-col md:flex-row md:items-center gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome ou e-mail..."
-                  className="pl-10 h-10 rounded-xl bg-background border-border"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
+      <div className="rounded-2xl border border-border shadow-card overflow-hidden">
+        <button
+          onClick={() => setShowMatrix(!showMatrix)}
+          className="w-full flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-primary" />
+            <span className="text-sm font-bold text-foreground">Matriz de Permissoes (RBAC)</span>
+          </div>
+          {showMatrix ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </button>
+        {showMatrix && (
+          <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-[#F0F2FF] dark:bg-muted/50">
-                <TableRow className="hover:bg-transparent border-b border-[#EEF1FF] dark:border-border">
-                  <TableHead className="text-[#3B4280] dark:text-foreground font-bold text-xs uppercase tracking-wider h-12">Usuario</TableHead>
-                  <TableHead className="text-[#3B4280] dark:text-foreground font-bold text-xs uppercase tracking-wider h-12">Perfil</TableHead>
-                  <TableHead className="text-[#3B4280] dark:text-foreground font-bold text-xs uppercase tracking-wider h-12">Valores</TableHead>
-                  <TableHead className="text-[#3B4280] dark:text-foreground font-bold text-xs uppercase tracking-wider h-12">Sessao</TableHead>
-                  <TableHead className="text-[#3B4280] dark:text-foreground font-bold text-xs uppercase tracking-wider h-12">Status</TableHead>
+              <TableHeader>
+                <TableRow className="border-b border-border">
+                  <TableHead className="text-xs font-bold uppercase tracking-wider bg-muted/30 sticky left-0 min-w-[140px]">Modulo</TableHead>
+                  {Object.keys(roleConfig).map((role) => (
+                    <TableHead key={role} className="text-xs font-bold uppercase tracking-wider text-center whitespace-nowrap">
+                      {roleConfig[role as keyof typeof roleConfig].label}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((user) => {
-                  const config = roleConfig[user.role];
-                  return (
-                    <TableRow key={user._id} className="even:bg-[#FAFBFF] odd:bg-white dark:even:bg-muted/10 dark:odd:bg-card border-b border-[#EEF1FF] dark:border-border group hover:bg-accent/30 transition-colors">
-                      <TableCell className="py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-sm font-bold ${config.color}`}>
-                            {user.fullName.split(" ").map(n => n[0]).slice(0, 2).join("")}
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-foreground text-sm leading-none mb-1">{user.fullName}</span>
-                            <span className="text-xs text-muted-foreground font-medium">{user.email}</span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${config.color}`}>
-                          {config.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {config.maskedValues ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <EyeOff className="h-3 w-3" />
-                            Camuflado
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-xs text-success">
-                            <Eye className="h-3 w-3" />
-                            Visivel
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          {config.session}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border-none ${
-                          user.status === "Ativo"
-                            ? "bg-success/15 text-success"
-                            : "bg-muted text-muted-foreground"
-                        }`}>
-                          {user.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {Object.entries(permissionMatrix).map(([module, roles]) => (
+                  <TableRow key={module} className="border-b border-border even:bg-muted/10">
+                    <TableCell className="text-xs font-semibold text-foreground sticky left-0 bg-inherit min-w-[140px]">{module}</TableCell>
+                    {Object.entries(roles).map(([role, access]) => (
+                      <TableCell key={role} className="text-center">{getPermissionBadge(access)}</TableCell>
+                    ))}
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>
-        </TabsContent>
-
-        <TabsContent value="permissoes" className="mt-6">
-          <Card className="shadow-card border-border overflow-hidden">
-            <CardHeader className="bg-muted/50 border-b border-border">
-              <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                <Shield className="h-4 w-4 text-primary" />
-                Matriz de Permissoes (RBAC)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b border-border">
-                    <TableHead className="text-xs font-bold uppercase tracking-wider bg-muted/30 sticky left-0 min-w-[140px]">Modulo</TableHead>
-                    {Object.keys(roleConfig).map((role) => (
-                      <TableHead key={role} className="text-xs font-bold uppercase tracking-wider text-center whitespace-nowrap">
-                        {roleConfig[role as keyof typeof roleConfig].label}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {Object.entries(permissionMatrix).map(([module, roles]) => (
-                    <TableRow key={module} className="border-b border-border even:bg-muted/10">
-                      <TableCell className="text-xs font-semibold text-foreground sticky left-0 bg-inherit min-w-[140px]">{module}</TableCell>
-                      {Object.entries(roles).map(([role, access]) => (
-                        <TableCell key={role} className="text-center">{getPermissionBadge(access)}</TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
     </div>
   );
 }

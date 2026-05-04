@@ -36,8 +36,8 @@ export default function LoginPage() {
       const msg = err?.message ?? "";
       if (msg.includes("Invalid credentials") || msg.includes("InvalidAccountId") || msg.includes("InvalidSecret")) {
         setError("Email ou senha incorretos.");
-      } else if (msg.includes("Account exists") || msg.includes("account already exists")) {
-        setError("Este email ja possui cadastro. Faca login.");
+      } else if (msg.includes("Account exists") || msg.includes("already exists")) {
+        setError("Este email ja possui cadastro. Clique em 'Entrar' para fazer login.");
       } else if (msg.includes("Too many requests") || msg.includes("TooManyFailedAttempts")) {
         setError("Muitas tentativas. Aguarde alguns minutos.");
       } else if (msg.includes("A senha deve ter")) {

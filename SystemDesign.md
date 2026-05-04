@@ -110,7 +110,7 @@ A tipografia foca em legibilidade, utilizando tracking e tamanhos variados para 
 - **Títulos de Modal/Página (h1/h2):** `text-2xl font-bold tracking-tight text-slate-800` (ou branco se no header do modal).
 - **Subtítulos (h3/h4):** `text-sm font-semibold text-slate-800`.
 - **Corpo/Texto Padrão (p):** `text-sm text-slate-600`.
-- **Labels de Formulário (`<Label>`):** `text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5`.
+- **Labels de Formulário (`<Label>`):** `text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5`.
 - **Micro-labels/Overlines:** `text-[10px] font-black uppercase tracking-widest text-primary`.
 - **Valores/Números (KPIs):** `font-bold font-numeric text-[#1A2060]`.
 
@@ -155,11 +155,43 @@ Ao criar componentes usando Shadcn (`npx shadcn-ui@latest add <componente>`), ap
 ## 5. Modais e Modais Dinâmicos (`<Dialog />` e `<Sheet />`)
 
 - **Dialog Overlay (`<DialogOverlay>`):** Escurecimento corporativo `bg-[#0B1037]/65` com `backdrop-blur-sm`.
-- **Dialog Content:** Fundo geral `bg-background` (`#F8F9FF`) englobando o body.
-- **Header:** Degradê corporativo no componente header: `bg-gradient-to-br from-[#0B1037] to-[#131952]` com texto em branco e botões de controle discretos.
-- **Sessões Internas:** Formulários divididos por blocos (usar componente `<Card>`) de fundo branco `bg-card rounded-2xl p-5`, com a sombra padrão e micro-labels de seção.
+- **Dialog Content:** Fundo geral `bg-background` (`#F8F9FF`) englobando o body, `rounded-[32px]`, `shadow-modal`, `p-0 overflow-hidden`.
+- **Header:** Fundo `bg-primary` sólido (primary #2D4FCC), texto branco `text-white`, padding `px-6 pt-6 pb-4`.
+- **Botão Fechar:** Posicionado no header (`absolute top-4 right-4`), `h-8 w-8`, `rounded-lg`, fundo `bg-white/20`, icone `text-white`, hover `bg-white/30`.
+- **Abas Navegação:** Botões `rounded-xl text-xs font-semibold`, ativo = `bg-primary text-white shadow-primary-btn`, inativo = `text-muted-foreground hover:text-foreground hover:bg-accent`.
+- **Toggle Button (2 opções):** Container `flex gap-1 p-1 rounded-xl bg-muted/50 border border-border w-fit`. Opção ativa = `bg-primary text-white shadow-primary-btn` (mesmo estilo das abas).
+- **Campos Formulário:** `h-10 rounded-xl`, labels `text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5`.
+- **Seções Internas:** Separadas por `border-t border-border pt-4`, com título `text-[10px] font-black uppercase tracking-widest text-primary mb-3`.
+- **Footer:** `px-6 py-4 border-t border-border bg-muted/20`, botão primary `rounded-xl h-11 shadow-primary-btn`.
+- **Estrutura do Dialog:** `flex flex-col`. Header (fixo) → Abas (fixo) → Conteúdo (scroll: `flex-1 overflow-y-auto`) → Footer (fixo).
 
-## 6. Animações e Transições (tailwindcss-animate)
+### Modal de Validação (Erros/Obrigatórios)
+
+- Header idêntico ao modal principal: `bg-primary px-6 pt-6 pb-4` com título branco e botão fechar.
+- Lista de erros: `<ul className="space-y-2">`, cada item `<li className="flex items-center gap-2.5 text-sm text-foreground">` com bullet `h-1.5 w-1.5 rounded-full bg-primary shrink-0`.
+- Footer: Botão único "Entendi" `w-full rounded-xl h-11 shadow-primary-btn`.
+
+### Máscaras de Input (src/lib/masks.ts)
+
+```typescript
+export function maskPhone(v: string)   // (11) 99999-9999
+export function maskCep(v: string)     // 00000-000
+export function maskCpf(v: string)     // 000.000.000-00
+export function maskCnpj(v: string)   // 00.000.000/0000-00
+export function maskDocument(v, type)  // PF → CPF, PJ → CNPJ
+export function strip(v: string)       // Remove formatação (só números)
+```
+
+Aplicar no `onChange` de cada input. Usar `strip()` antes de salvar no banco.
+
+### PIX Type Selector
+
+Combo de `<Select>` (tipo) + `<Input>` (valor):
+- Tipos: CPF, CNPJ, Email, Telefone, Aleatoria
+- Select `w-28 shrink-0`, Input `flex-1`, container `flex gap-2`
+- Placeholder do Input muda conforme tipo: "Chave aleatoria gerada pelo banco" para tipo Aleatoria, "Valor da chave" para demais.
+
+## 6. Animacoes e Transicoes (tailwindcss-animate)
 
 Com o uso do Shadcn, recebemos gratuitamente o plugin `tailwindcss-animate`. O Design System Ohana Clean foca em macro e micro-interações:
 - Utilização sistemática de `transition-all duration-200` em hovers.

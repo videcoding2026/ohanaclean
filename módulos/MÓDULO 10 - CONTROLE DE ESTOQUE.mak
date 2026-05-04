@@ -144,6 +144,9 @@
 ║  ├── M05 (Insumos): Estrutura pai+variante, min/max         ║
 ║  ├── M07 (Produtos): Catálogo, SKUs, fórmula vinculada      ║
 ║  ├── M09 (Compras): Entradas de insumos via recebimento     ║
+║  │   de compra e baixa via devolução. Atualiza campo        ║
+║  │   quantidade e PMP em insumoVariants.                     ║
+║  ├── M09 (Compras): Entradas de insumos via recebimento     ║
 ║  ├── M11 (Produção): Baixa de insumos e entrada de produtos ║
 ║  ├── M13 (Pedidos): Reserva e baixa de produtos em vendas  ║
 ║  ├── M14 (Financeiro): Valorização para relatórios contábeis║

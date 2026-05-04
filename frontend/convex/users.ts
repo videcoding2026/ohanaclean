@@ -31,9 +31,9 @@ export const list = query({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first()
     if (!currentProfile || currentProfile.role !== "Admin") {
-      throw new Error("Apenas Admin pode listar usuarios")
+      return []
     }
-    const profiles = await ctx.db.query("userProfiles").collect()
+    const profiles = await ctx.db.query("userProfiles").order("desc").take(200)
     const users = await Promise.all(
       profiles.map(async (p) => {
         const user = await ctx.db.get(p.userId)
@@ -156,7 +156,7 @@ export const checkBlocked = query({
   },
 })
 
-export const recordFailedLogin = mutation({
+export const recordFailedLogin = internalMutation({
   args: { targetEmail: v.string() },
   handler: async (ctx, args) => {
     const user = await ctx.db
@@ -285,7 +285,37 @@ export const createFirstProfile = mutation({
 export const isEmpty = query({
   args: {},
   handler: async (ctx) => {
-    const profiles = await ctx.db.query("userProfiles").collect()
-    return profiles.length === 0
+    const profile = await ctx.db.query("userProfiles").first()
+    return profile === null
+  },
+})
+
+export const ensureMyProfile = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error("Not authenticated")
+    const existing = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .first()
+    if (existing) return existing
+
+    const allProfiles = await ctx.db.query("userProfiles").first()
+    const role = allProfiles ? "Visualizador" : "Admin"
+
+    const user = await ctx.db.get(userId)
+    const profileId = await ctx.db.insert("userProfiles", {
+      userId,
+      fullName: user?.name ?? user?.email ?? "Novo Usuario",
+      role,
+      status: "Ativo",
+      sessionTimeoutMinutes: 240,
+      twoFactorEnabled: false,
+      failedLoginAttempts: 0,
+      createdAt: Date.now(),
+    })
+
+    return await ctx.db.get(profileId)
   },
 })
