@@ -1,5 +1,5 @@
 import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Box, Factory, Settings, LogOut, ShieldCheck, Sun, Moon, Palette, Truck, Package, ShoppingCart, Boxes } from 'lucide-react';
+import { LayoutDashboard, Users, Box, Factory, Settings, LogOut, ShieldCheck, Sun, Moon, Palette, Truck, Package, ShoppingCart, Boxes, Tag } from 'lucide-react';
 import { useConvexAuth } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { useTheme } from 'next-themes';
@@ -25,6 +25,11 @@ import StockPage from './pages/StockPage';
 import ProductionPage from './pages/ProductionPage';
 import NewProductionPage from './pages/NewProductionPage';
 import ProductionDetailPage from './pages/ProductionDetailPage';
+import PriceTablePage from './pages/PriceTablePage';
+import PriceTableDetailPage from './pages/PriceTableDetailPage';
+import OrdersPage from './pages/OrdersPage';
+import NewOrderPage from './pages/NewOrderPage';
+import OrderDetailPage from './pages/OrderDetailPage';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 
@@ -252,6 +257,28 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <Factory className="h-4 w-4" />
             Producao
           </Link>
+          <Link
+            to="/precos"
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+              isActive("/precos")
+                ? "bg-primary text-white shadow-primary-btn"
+                : "text-slate-500 hover:bg-accent hover:text-primary"
+            }`}
+          >
+            <Tag className="h-4 w-4" />
+            Tabela de Precos
+          </Link>
+          <Link
+            to="/pedidos"
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+              isActive("/pedidos")
+                ? "bg-primary text-white shadow-primary-btn"
+                : "text-slate-500 hover:bg-accent hover:text-primary"
+            }`}
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Pedidos
+          </Link>
           {isAdmin && (
             <Link
               to="/design-system"
@@ -306,6 +333,12 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             {isActive("/producao") && !location.pathname.includes("/producao/") && "Gestao de Producao"}
             {location.pathname === "/producao/nova" && "Nova Ordem de Producao"}
             {location.pathname.startsWith("/producao/") && !location.pathname.endsWith("/nova") && "Ordem de Producao"}
+            {isActive("/precos") && !location.pathname.includes("/precos/") && "Tabela de Precos"}
+            {location.pathname === "/precos/nova" && "Nova Tabela de Preco"}
+            {location.pathname.startsWith("/precos/") && !location.pathname.endsWith("/nova") && "Editar Tabela"}
+            {isActive("/pedidos") && !location.pathname.includes("/pedidos/") && "Pedidos e Orcamentos"}
+            {location.pathname === "/pedidos/nova" && "Novo Pedido / Orcamento"}
+            {location.pathname.startsWith("/pedidos/") && !location.pathname.endsWith("/nova") && "Detalhe do Pedido"}
             {location.pathname === "/compras/nova" && "Nova Compra"}
             {location.pathname.startsWith("/compras/") && location.pathname.endsWith("/receber") && "Recebimento"}
             {location.pathname.startsWith("/compras/") && location.pathname.endsWith("/devolver") && "Devolucao"}
@@ -425,6 +458,12 @@ function App() {
                   <Route path="/producao" element={<ProductionPage />} />
                   <Route path="/producao/nova" element={<NewProductionPage />} />
                   <Route path="/producao/:id" element={<ProductionDetailPage />} />
+                  <Route path="/precos" element={<PriceTablePage />} />
+                  <Route path="/precos/nova" element={<PriceTableDetailPage />} />
+                  <Route path="/precos/:id" element={<PriceTableDetailPage />} />
+                  <Route path="/pedidos" element={<OrdersPage />} />
+                  <Route path="/pedidos/nova" element={<NewOrderPage />} />
+                  <Route path="/pedidos/:id" element={<OrderDetailPage />} />
                   <Route path="/settings" element={<CompanySettingsPage />} />
                   <Route path="/design-system" element={<SystemDesignPage />} />
                   <Route path="*" element={<div className="text-slate-400 text-sm italic p-12 text-center bg-card rounded-2xl border border-dashed border-border">Modulo em desenvolvimento...</div>} />

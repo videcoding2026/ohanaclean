@@ -16,6 +16,8 @@ import type * as contasPagar from "../contasPagar.js";
 import type * as formulas from "../formulas.js";
 import type * as http from "../http.js";
 import type * as insumos from "../insumos.js";
+import type * as orders from "../orders.js";
+import type * as pricetables from "../pricetables.js";
 import type * as production from "../production.js";
 import type * as products from "../products.js";
 import type * as purchases from "../purchases.js";
@@ -40,6 +42,8 @@ declare const fullApi: ApiFromModules<{
   formulas: typeof formulas;
   http: typeof http;
   insumos: typeof insumos;
+  orders: typeof orders;
+  pricetables: typeof pricetables;
   production: typeof production;
   products: typeof products;
   purchases: typeof purchases;

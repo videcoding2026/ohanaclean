@@ -36,23 +36,31 @@ async function generateNumber(ctx: any): Promise<string> {
 }
 
 async function updatePMP(ctx: any, item: { insumoId: any; varianteId?: any; quantidade: number; precoUnitario: number; subtotal: number }, frete: number, totalCompra: number) {
-  if (!item.varianteId) return
-  const variante = await ctx.db.get(item.varianteId)
-  if (!variante) return
   const proporcao = totalCompra > 0 ? item.subtotal / totalCompra : 0
   const freteProporcional = frete * proporcao
   const custoReal = item.precoUnitario + (item.quantidade > 0 ? freteProporcional / item.quantidade : 0)
-  const qtdAtual = variante.quantidade || 0
-  const pmpAtual = variante.precoMedio || 0
-  const qtdNova = item.quantidade
-  const valorAtual = qtdAtual * pmpAtual
-  const valorNovo = qtdNova * custoReal
-  const pmpNovo = (qtdAtual + qtdNova) > 0 ? (valorAtual + valorNovo) / (qtdAtual + qtdNova) : custoReal
-  await ctx.db.patch(item.varianteId, {
-    precoMedio: pmpNovo,
-    quantidade: qtdAtual + qtdNova,
-    updatedAt: Date.now(),
-  } as any)
+
+  if (item.varianteId) {
+    const variante = await ctx.db.get(item.varianteId)
+    if (!variante) return
+    const qtdAtual = variante.quantidade || 0
+    const pmpAtual = variante.precoMedio || 0
+    const qtdNova = item.quantidade
+    const valorAtual = qtdAtual * pmpAtual
+    const valorNovo = qtdNova * custoReal
+    const pmpNovo = (qtdAtual + qtdNova) > 0 ? (valorAtual + valorNovo) / (qtdAtual + qtdNova) : custoReal
+    await ctx.db.patch(item.varianteId, { precoMedio: pmpNovo, quantidade: qtdAtual + qtdNova, updatedAt: Date.now() } as any)
+  } else {
+    const insumo = await ctx.db.get(item.insumoId)
+    if (!insumo) return
+    const qtdAtual = insumo.quantidade || 0
+    const pmpAtual = insumo.precoMedio || 0
+    const qtdNova = item.quantidade
+    const valorAtual = qtdAtual * pmpAtual
+    const valorNovo = qtdNova * custoReal
+    const pmpNovo = (qtdAtual + qtdNova) > 0 ? (valorAtual + valorNovo) / (qtdAtual + qtdNova) : custoReal
+    await ctx.db.patch(item.insumoId, { precoMedio: pmpNovo, quantidade: qtdAtual + qtdNova, updatedAt: Date.now() } as any)
+  }
 }
 
 async function createContasPagar(ctx: any, purchaseId: any, fornecedorId: any, fornecedorNome: string, total: number, condPagamento: string, tipoPagamento: string, dataCompra: number, statusInicial: string) {
@@ -635,6 +643,14 @@ export const returnItems = mutation({
           observacao: incoming.motivo,
           userId,
         })
+      } else if (!dbItem.varianteId) {
+        const insumo = await ctx.db.get(dbItem.insumoId)
+        if (insumo) {
+          const qtdAtual = insumo.quantidade || 0
+          const qtdNova = Math.max(0, qtdAtual - incoming.quantidade)
+          await ctx.db.patch(dbItem.insumoId, { quantidade: qtdNova, updatedAt: Date.now() } as any)
+          await logMovement(ctx, { itemType: "insumo", insumoId: dbItem.insumoId, tipo: "saida", quantidade: incoming.quantidade, saldoAnterior: qtdAtual, saldoAtual: qtdNova, origem: "devolucao", referenciaId: args.purchaseId, observacao: incoming.motivo, userId })
+        }
       }
     }
 

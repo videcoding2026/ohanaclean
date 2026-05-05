@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../convex/_generated/api"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -8,7 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Pencil, Beaker, XIcon, Trash2 } from "lucide-react"
+import { Search, Plus, Pencil, Beaker, XIcon, Trash2, Copy } from "lucide-react"
+import { maskDecimal, parseDecimal } from "@/lib/masks"
 
 const catOpts = ["Base quimica", "Tensoativo", "Corante", "Perfume / Fragrancia", "Conservante", "Solvente", "Espessante", "Embalagem", "Rotulo", "Outros"]
 const unidOpts = ["kg", "g", "L", "ml", "un"]
@@ -22,7 +24,7 @@ const statusBadge = (s: string) => {
 const emptyForm = () => ({
   nome: "", nomeTecnico: "", descricao: "", categoria: "", unidadeCompra: "", unidadeUso: "",
   densidade: 0, temValidade: false, dataValidade: "",
-  temVariantes: false,
+  temVariantes: false, temSubstituto: false,
   insumoSubstitutoId: "", proporcaoSubstituicao: 0, observacaoSubstituicao: "",
   status: "Ativo" as const,
 })
@@ -42,6 +44,7 @@ export default function InsumosPage() {
   const updateVariant = useMutation(api.insumos.updateVariant)
   const removeVariant = useMutation(api.insumos.removeVariant)
   const removeInsumo = useMutation(api.insumos.remove)
+  const updatePrecoMedio = useMutation(api.insumos.updatePrecoMedio)
 
   const [open, setOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -62,6 +65,11 @@ export default function InsumosPage() {
   const [varValOpen, setVarValOpen] = useState(false)
   const [varValMsg, setVarValMsg] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Queries for tabs 03/04/06
+  const stockHistory = useQuery(api.stock.getHistory, editId ? { insumoId: editId as any, limit: 100 } : "skip")
+  const formulasList = useQuery(api.formulas.list, {})
+  const suppliers = useQuery(api.suppliers.list, {})
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0 }, [tabIdx])
 
@@ -94,6 +102,7 @@ export default function InsumosPage() {
         data[k] = (typeof v === "number" && v === 0) || v === "" ? undefined : v
       }
       data.insumoSubstitutoId = data.insumoSubstitutoId || undefined
+      delete data.temSubstituto
       if (editId) await update({ insumoId: editId as any, ...data })
       else await create(data)
       setOpen(false)
@@ -104,7 +113,7 @@ export default function InsumosPage() {
   const handleConfirm = () => { if (confirmAction) confirmAction(); setConfirmOpen(false) }
 
   const tabs = ["Dados Gerais", "Variantes", "Estoque", "Custos", "Ficha Tecnica", "Historico"]
-  const disabledTabs = [false, !editId || !form.temVariantes, true, true, true, true]
+  const disabledTabs = [false, !editId || !form.temVariantes, !editId, !editId, true, !editId]
 
   return (
     <div className="space-y-6">
@@ -273,7 +282,7 @@ export default function InsumosPage() {
             <DialogClose className="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-lg bg-white/20 text-white hover:bg-white/30"><XIcon className="h-4 w-4" /></DialogClose>
             <DialogHeader className="p-0">
               <DialogTitle className="text-2xl font-bold tracking-tight text-white">{editId ? "Editar Insumo" : "Novo Insumo"}</DialogTitle>
-              <DialogDescription className="text-sm text-white/70 mt-1">Abas 03-06 serao implementadas em fases futuras.</DialogDescription>
+              <DialogDescription className="text-sm text-white/70 mt-1">Gerencie todas as informacoes do insumo.</DialogDescription>
             </DialogHeader>
           </div>
 
@@ -323,7 +332,7 @@ export default function InsumosPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Densidade</Label><Input className="h-10 rounded-xl" type="number" value={form.densidade || ""} onChange={(e) => setF("densidade", Number(e.target.value) || 0)} /></div>
+                    <div className="space-y-1.5"><Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Densidade (kg/cm³)</Label><Input className="h-10 rounded-xl font-mono text-right" value={(form.densidade || 0) > 0 ? maskDecimal(String(Math.round((form.densidade || 0) * 1000)).padStart(4, "0"), true) : ""} onChange={(e) => setF("densidade", parseDecimal(e.target.value, true))} placeholder="0,000" /></div>
                     <div className="space-y-1.5">
                       <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Validade</Label>
                       <div className="flex gap-1 p-1 rounded-xl bg-muted/50 border border-border w-fit">
@@ -344,11 +353,20 @@ export default function InsumosPage() {
 
                 <div className="pt-4 border-t border-border space-y-4">
                   <p className="text-[10px] font-black uppercase tracking-widest text-primary">Insumo Substituto</p>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Substituto</Label><Input className="h-10 rounded-xl" value={form.insumoSubstitutoId} onChange={(e) => setF("insumoSubstitutoId", e.target.value)} /></div>
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Proporcao (%)</Label><Input className="h-10 rounded-xl" type="number" value={form.proporcaoSubstituicao || ""} onChange={(e) => setF("proporcaoSubstituicao", Number(e.target.value) || 0)} /></div>
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Obs.</Label><Input className="h-10 rounded-xl" value={form.observacaoSubstituicao} onChange={(e) => setF("observacaoSubstituicao", e.target.value)} /></div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Tem Substituto?</Label>
+                    <div className="flex gap-1 p-1 rounded-xl bg-muted/50 border border-border w-fit">
+                      <button onClick={() => setF("temSubstituto", false)} className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${!form.temSubstituto ? "bg-primary text-white shadow-primary-btn" : "text-muted-foreground"}`}>Nao</button>
+                      <button onClick={() => setF("temSubstituto", true)} className={`px-3 py-1.5 text-xs font-semibold rounded-lg ${form.temSubstituto ? "bg-primary text-white shadow-primary-btn" : "text-muted-foreground"}`}>Sim</button>
+                    </div>
                   </div>
+                  {form.temSubstituto && (
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-1.5"><Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Substituto</Label><Input className="h-10 rounded-xl" value={form.insumoSubstitutoId} onChange={(e) => setF("insumoSubstitutoId", e.target.value)} placeholder="ID do insumo substituto" /></div>
+                      <div className="space-y-1.5"><Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Proporcao (%)</Label><Input className="h-10 rounded-xl" type="number" value={form.proporcaoSubstituicao || ""} onChange={(e) => setF("proporcaoSubstituicao", Number(e.target.value) || 0)} /></div>
+                      <div className="space-y-1.5"><Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Obs.</Label><Input className="h-10 rounded-xl" value={form.observacaoSubstituicao} onChange={(e) => setF("observacaoSubstituicao", e.target.value)} /></div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t border-border space-y-4">
@@ -398,6 +416,19 @@ export default function InsumosPage() {
                               </div>
                               <p className="text-xs text-muted-foreground truncate mt-0.5">{v.descricao || "—"} {v.unidadeMedida ? `| ${v.unidadeMedida}` : ""}</p>
                             </div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary shrink-0"
+                              onClick={(e) => { e.stopPropagation();
+                                setVarForm({
+                                  nome: "", descricao: v.descricao || "", temValidade: v.temValidade || false,
+                                  dataValidade: v.dataValidade || "", unidadeMedida: v.unidadeMedida || "",
+                                  estoqueMinimo: v.estoqueMinimo || 0, estoqueMaximo: v.estoqueMaximo || 0,
+                                  localizacao: v.localizacao || "", fornecedorPreferencialId: v.fornecedorPreferencialId || "",
+                                  status: v.status || "Ativa",
+                                })
+                                setVarEditId(null); setVarDialog(true)
+                              }}>
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive shrink-0"
                               onClick={(e) => { e.stopPropagation();
                                 setConfirmMsg("Remover esta variante?")
@@ -417,11 +448,139 @@ export default function InsumosPage() {
               </div>
             </div>
 
-            <div className={tabIdx >= 2 ? "block" : "hidden"}>
-              <div className="py-16 text-center text-sm text-muted-foreground">
-                {tabIdx === 2 ? "Estoque e Localizacao" : tabIdx === 3 ? "Custos e Fornecedores" : tabIdx === 4 ? "Ficha Tecnica e Seguranca" : "Historico e Movimentacoes"} — Fase 3
+            {tabIdx === 2 && editId && (
+              <div className="space-y-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Estoque e Localizacao</p>
+                {!form.temVariantes ? (
+                  <div className="rounded-2xl border border-border bg-muted/10 p-4 space-y-2">
+                    <div className="flex items-center justify-between"><span className="text-sm font-bold text-foreground">{form.nome}</span><Badge className="bg-success/15 text-success text-[10px] font-bold uppercase border-transparent">Insumo Direto</Badge></div>
+                    <div className="grid grid-cols-3 gap-3 text-xs">
+                      <div><span className="text-[10px] font-bold text-muted-foreground uppercase block">Saldo Atual</span><span className="text-foreground font-mono font-semibold">{(insumos?.find((i: any) => i._id === editId)?.quantidade || 0)} {form.unidadeUso || "un"}</span></div>
+                      <div><span className="text-[10px] font-bold text-muted-foreground uppercase block">PMP</span><span className="text-foreground font-mono">R$ {(insumos?.find((i: any) => i._id === editId)?.precoMedio || 0).toFixed(4)}</span></div>
+                      <div><span className="text-[10px] font-bold text-muted-foreground uppercase block">Valor Total</span><span className="text-foreground font-mono font-semibold">R$ {((insumos?.find((i: any) => i._id === editId)?.quantidade || 0) * (insumos?.find((i: any) => i._id === editId)?.precoMedio || 0)).toFixed(2)}</span></div>
+                    </div>
+                  </div>
+                ) : (!variantsQuery || variantsQuery.length === 0) ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma variante cadastrada.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {variantsQuery.map((v: any) => (
+                      <div key={v._id} className="rounded-2xl border border-border bg-muted/10 p-4 space-y-2">
+                        <div className="flex items-center justify-between"><span className="text-sm font-bold text-foreground">{v.nome}</span>{v.quantidade != null && (v.estoqueMinimo > 0 && v.quantidade <= v.estoqueMinimo ? <Badge className="bg-destructive/15 text-destructive text-[10px] font-bold uppercase border-transparent">Abaixo do Min</Badge> : <Badge className="bg-success/15 text-success text-[10px] font-bold uppercase border-transparent">OK</Badge>)}</div>
+                        <div className="grid grid-cols-3 gap-3 text-xs">
+                          <div><span className="text-[10px] font-bold text-muted-foreground uppercase block">Saldo Atual</span><span className="text-foreground font-mono font-semibold">{v.quantidade || 0} {v.unidadeMedida || "un"}</span></div>
+                          <div><span className="text-[10px] font-bold text-muted-foreground uppercase block">Estoque Min</span><span className="text-foreground font-mono">{v.estoqueMinimo || "—"} {v.unidadeMedida || "un"}</span></div>
+                          <div><span className="text-[10px] font-bold text-muted-foreground uppercase block">Estoque Max</span><span className="text-foreground font-mono">{v.estoqueMaximo || "—"} {v.unidadeMedida || "un"}</span></div>
+                          {v.reservado > 0 && <div><span className="text-[10px] font-bold text-muted-foreground uppercase block">Reservado</span><span className="text-warning font-mono font-semibold">{v.reservado} {v.unidadeMedida || "un"}</span></div>}
+                          <div><span className="text-[10px] font-bold text-muted-foreground uppercase block">Localizacao</span><span className="text-foreground">{v.localizacao || "—"}</span></div>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                          {v.estoqueMaximo > 0 && <div className={`h-full rounded-full transition-all ${v.quantidade <= v.estoqueMinimo ? "bg-destructive" : v.quantidade >= v.estoqueMaximo ? "bg-warning" : "bg-success"}`} style={{ width: `${Math.min(100, Math.max(0, (v.quantidade / v.estoqueMaximo) * 100))}%` }} />}
+                        </div>
+                      </div>
+                    ))}
+                    <div className="pt-2 border-t border-border text-right text-sm">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase">Saldo total consolidado: </span>
+                      <span className="font-bold text-foreground">{variantsQuery.reduce((s: number, v: any) => s + (v.quantidade || 0), 0)} {variantsQuery[0]?.unidadeMedida || "un"}</span>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
+
+            {tabIdx === 3 && editId && (
+              <div className="space-y-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Custos e Fornecedores</p>
+                {!form.temVariantes ? (
+                  <div className="rounded-2xl border border-border bg-muted/10 p-4 space-y-3">
+                    <div className="flex items-center justify-between"><span className="text-sm font-bold text-foreground">Preco Medio Ponderado (PMP)</span></div>
+                    <div className="flex items-center gap-3">
+                      <Input className="h-10 rounded-xl font-mono text-right w-40" type="number" step="0.0001" defaultValue={(insumos?.find((i: any) => i._id === editId)?.precoMedio || 0).toFixed(4)} placeholder="0.0000" onBlur={async (e) => {
+                        const v = parseFloat(e.target.value)
+                        if (!isNaN(v) && editId) {
+                          try { await updatePrecoMedio({ insumoId: editId as any, precoMedio: v }); toast.success("PMP atualizado!") } catch (e: any) { toast.error(e.message) }
+                        }
+                      }} />
+                      <span className="text-xs text-muted-foreground">por {form.unidadeUso || "un"}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-xs pt-2">
+                      <div><span className="text-[10px] font-bold text-muted-foreground uppercase block">Valor Total Estoque</span><span className="text-foreground font-mono font-semibold">R$ {((insumos?.find((i: any) => i._id === editId)?.quantidade || 0) * (insumos?.find((i: any) => i._id === editId)?.precoMedio || 0)).toFixed(2)}</span></div>
+                    </div>
+                  </div>
+                ) : (!variantsQuery || variantsQuery.length === 0) ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma variante cadastrada.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {variantsQuery.map((v: any) => (
+                      <div key={v._id} className="rounded-2xl border border-border bg-muted/10 p-4 space-y-2">
+                        <div className="flex items-center justify-between"><span className="text-sm font-bold text-foreground">{v.nome}</span></div>
+                        <div className="grid grid-cols-3 gap-3 text-xs">
+                          <div><span className="text-[10px] font-bold text-muted-foreground uppercase block">PMP</span><span className="text-foreground font-mono font-semibold">R$ {(v.precoMedio || 0).toFixed(4)}</span></div>
+                          <div><span className="text-[10px] font-bold text-muted-foreground uppercase block">Valor Total Estoque</span><span className="text-foreground font-mono font-semibold">R$ {((v.quantidade || 0) * (v.precoMedio || 0)).toFixed(2)}</span></div>
+                          <div><span className="text-[10px] font-bold text-muted-foreground uppercase block">Fornecedor Pref.</span><span className="text-foreground">{suppliers?.find((f: any) => f._id === v.fornecedorPreferencialId)?.pjNomeFantasia || suppliers?.find((f: any) => f._id === v.fornecedorPreferencialId)?.pfName || "—"}</span></div>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="pt-2 border-t border-border text-right text-sm">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase">Valor total do estoque: </span>
+                      <span className="font-bold text-foreground">R$ {variantsQuery.reduce((s: number, v: any) => s + ((v.quantidade || 0) * (v.precoMedio || 0)), 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Formulas que usam este insumo */}
+                <div className="pt-4 border-t border-border space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">Formulas que usam este insumo</p>
+                  {(() => {
+                    const formulasUsam = (formulasList ?? []).filter((f: any) => variantsQuery?.some((v: any) => f._id && v.insumoId === editId))
+                    return formulasUsam.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma formula vinculada.</p> : (
+                      <div className="flex flex-wrap gap-1">{formulasUsam.map((f: any) => <Badge key={f._id} className="bg-primary/10 text-primary text-[10px]">{f.nome}</Badge>)}</div>
+                    )
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {tabIdx === 4 && (
+              <div className="py-16 text-center text-sm text-muted-foreground">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3">Ficha Tecnica e Seguranca</p>
+                <p>CAS Number, pH, fabricante, EPIs, FISPQ e dados de seguranca serao implementados em breve.</p>
+              </div>
+            )}
+
+            {tabIdx === 5 && editId && (
+              <div className="space-y-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Historico e Movimentacoes</p>
+                {!stockHistory || stockHistory.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma movimentacao registrada para este insumo.</p>
+                ) : (
+                  <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
+                    {stockHistory.filter((m: any) => {
+                      // Filter for this insumo's variants
+                      if (!variantsQuery) return false
+                      return variantsQuery.some((v: any) => v._id === m.varianteId) || m.insumoId === editId
+                    }).map((m: any) => (
+                      <div key={m._id} className="flex items-center gap-3 py-2 text-sm">
+                        {m.tipo === "entrada" ? <Badge className="bg-success/15 text-success text-[10px] font-bold border-transparent shrink-0">Entrada</Badge>
+                          : m.tipo === "saida" ? <Badge className="bg-destructive/15 text-destructive text-[10px] font-bold border-transparent shrink-0">Saida</Badge>
+                          : m.tipo === "transferencia" ? <Badge className="bg-primary/10 text-primary text-[10px] font-bold border-transparent shrink-0">Transf</Badge>
+                          : <Badge className="bg-muted text-muted-foreground text-[10px] font-bold border-transparent shrink-0">Ajuste</Badge>}
+                        <span className="font-mono font-semibold shrink-0 w-16 text-right">{m.quantidade}</span>
+                        <span className="text-muted-foreground text-xs shrink-0">{m.saldoAnterior} → {m.saldoAtual}</span>
+                        <span className="text-muted-foreground text-xs truncate flex-1">{m.observacao || m.origem || ""}</span>
+                        <span className="text-muted-foreground/50 text-xs shrink-0">{new Date(m._creationTime).toLocaleDateString("pt-BR")}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {tabIdx >= 2 && tabIdx !== 2 && tabIdx !== 3 && tabIdx !== 4 && tabIdx !== 5 && (
+              <div className="py-16 text-center text-sm text-muted-foreground">
+                Aba em desenvolvimento.
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 px-6 py-4 border-t border-border bg-muted/20">

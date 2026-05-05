@@ -116,10 +116,25 @@ MÓDULO 10 (Estoque)  ← depende de → MÓDULO 05 (Insumos) + MÓDULO 09 (Comp
 | Item | Descrição | Status |
 |------|-----------|--------|
 | MÓDULO 11 | **Gestão de Produção** — Ordens de Produção com verificação de estoque por variante, checklist, baixa automática, custo real, lotes, **CQ/Quarentena** (reprovar → quarentena → liberar/reprocessar/descartar) | ✅ |
-| MÓDULO 12 | **Tabela de Preços** — Precificação baseada no custo (PMP) + margem | ❌ |
-| MÓDULO 13 | **Pedidos e Vendas** — PDV, seleção de clientes, baixa de estoque | ❌ |
+| MÓDULO 12 | **Tabela de Preços** — Tabelas de preço com 4 abas (Dados/Preços/Clientes/Histórico), base por outra tabela com ajuste %, reajuste em lote, histórico de alterações, vínculo com clientes | ✅ |
+| MÓDULO 13 | **Pedidos e Vendas** — PDV com seleção cliente/produto, preço automático da tabela, Orçamento ↔ Pedido, fluxo de status (Conf→Separação→Entrega/Retirada→Concluído), contas a receber, baixa/estorno estoque, timeline | ✅ |
 
 **Dependências:** MÓDULO 10 (Estoque) + MÓDULO 11 (Produção) → MÓDULO 13 (Vendas)
+
+### MÓDULO 11 - Gestão de Produção (detalhamento)
+... (ver seção acima)
+
+### MÓDULO 13 - Pedidos e Vendas (detalhamento)
+
+| Rota | Página | Função |
+|------|--------|--------|
+| `/pedidos` | OrdersPage | Lista com KPIs, filtros status/tipo, busca |
+| `/pedidos/nova` | NewOrderPage | PDV: seleção cliente, tabela preço auto, produtos, descontos, frete, pagamento |
+| `/pedidos/:id` | OrderDetailPage | Detalhe com ações por status, itens, contas a receber, timeline |
+
+**Status workflow:** Orçamento → Confirmado → Em Separação → Aguardando Retirada / Saiu Entrega → Concluído (+ Cancelado). Orçamento converte para Pedido com 1 clique.
+
+**Integrações:** Clientes (M08), Tabela de Preços (M12), Estoque de Produtos (M10), Contas a Receber (M14 parcial)
 
 ---
 
@@ -142,13 +157,13 @@ MÓDULO 10 (Estoque)  ← depende de → MÓDULO 05 (Insumos) + MÓDULO 09 (Comp
 | Fase 1 | M01, M02, M03 | ✅ 100% |
 | Fase 2 | M04, M05, M07, M08 | ✅ 100% |
 | Fase 3 | M06, M09, M10 | ✅ 100% |
-| Fase 4 | M11, M12, M13 | 🔄 33% (M11 OK) |
+| Fase 4 | M11, M12, M13 | ✅ 100% |
 | Fase 5 | M14, M15, M16, M17 | 🔄 25% (M17 OK, M14 parcial) |
 
-**Total:** 9 módulos concluídos, 1 parcial (M14), 5 pendentes
+**Total:** 11 módulos concluídos, 1 parcial (M14), 3 pendentes
 
 ### Próximo passo recomendado
-**MÓDULO 12 - Tabela de Preços** — precificação baseada no custo real (PMP das variantes + margem por embalagem). Já existem campos `margem`, `precoSugerido`, `precoVenda` em `productPackagings`.
+**MÓDULO 14 - Gestão Financeira** — completar Contas a Pagar (CRUD + conciliação) e Contas a Receber (já geradas por M13). Fase 5.
 
 ---
 

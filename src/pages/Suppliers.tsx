@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Pencil, Building, XIcon } from "lucide-react"
+import { Search, Plus, Pencil, Building, XIcon, Check } from "lucide-react"
 import { maskPhone, maskCep, maskDocument, strip } from "@/lib/masks"
 
 const statusBadge = (s: string) => {
@@ -18,7 +18,7 @@ const statusBadge = (s: string) => {
 
 const emptyForm = () => ({
   supplierType: "direto", personType: "PJ",
-  pfName: "", pfCpf: "", pfBirthDate: "",
+  pfName: "", pfCpf: "", pfBirthDate: new Date().toISOString().slice(0, 10),
   pjRazaoSocial: "", pjNomeFantasia: "", pjCnpj: "", pjInscricaoEstadual: "", pjInscricaoMunicipal: "",
   marketplaceName: "", marketplaceLink: "",
   logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "",
@@ -57,9 +57,23 @@ export default function SuppliersPage() {
   const openEdit = (s: any) => {
     const f = emptyForm() as any
     for (const k of Object.keys(f)) if (s[k] !== undefined && s[k] !== null) f[k] = s[k]
+    // Reapply masks on loaded raw data
+    if (f.telefone) f.telefone = maskPhone(f.telefone)
+    if (f.whatsapp) f.whatsapp = maskPhone(f.whatsapp)
+    if (f.cep) f.cep = maskCep(f.cep)
+    if (f.pfCpf) f.pfCpf = maskDocument(f.pfCpf, "PF")
+    if (f.pjCnpj) f.pjCnpj = maskDocument(f.pjCnpj, "PJ")
     setForm(f); setEditId(s._id); setTabIdx(0); setOpen(true)
   }
   const setF = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }))
+  const getCats = () => (form.categoria || "").split(",").filter(Boolean)
+  const toggleCat = (cat: string) => {
+    const cats = getCats()
+    const idx = cats.indexOf(cat)
+    if (idx >= 0) cats.splice(idx, 1)
+    else cats.push(cat)
+    setF("categoria", cats.join(","))
+  }
 
   const handleSave = async () => {
     const missing = []
@@ -137,7 +151,7 @@ export default function SuppliersPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-sm">{s.supplierType === "marketplace" ? <Badge variant="outline" className="text-[10px]">{s.marketplaceName || "MP"}</Badge> : <Badge className="bg-secondary/10 text-secondary text-[10px]">{s.personType}</Badge>}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{s.categoria || "—"}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{(s.categoria || "").split(",").filter(Boolean).slice(0, 2).join(", ") || "—"}{(s.categoria || "").split(",").filter(Boolean).length > 2 ? " +" + ((s.categoria || "").split(",").filter(Boolean).length - 2) : ""}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{s.telefone}</TableCell>
                   <TableCell>{statusBadge(s.status)}</TableCell>
                   <TableCell>
@@ -228,11 +242,19 @@ export default function SuppliersPage() {
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Categoria</Label>
-                    <Select value={form.categoria} onValueChange={(v) => setF("categoria", v)}>
-                      <SelectTrigger className="h-10 rounded-xl min-w-[180px]"><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                      <SelectContent>{catOpts.map(c => <SelectItem key={c} value={c} className="text-sm">{c}</SelectItem>)}</SelectContent>
-                    </Select>
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Categorias</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {catOpts.map(c => {
+                        const selected = getCats().includes(c)
+                        return (
+                          <button key={c} type="button" onClick={() => toggleCat(c)}
+                            className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1 ${selected ? "bg-primary text-white border-primary shadow-primary-btn" : "bg-card text-muted-foreground border-border hover:border-muted-foreground"}`}>
+                            {selected && <Check className="h-3 w-3" />}{c}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {getCats().length > 0 && <p className="text-[10px] text-muted-foreground">{getCats().length} categoria(s) selecionada(s)</p>}
                   </div>
                 </div>
 
@@ -302,8 +324,8 @@ export default function SuppliersPage() {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Data de Nascimento</Label>
-                      <Input className="h-10 rounded-xl" value={form.pfBirthDate} onChange={(e) => setF("pfBirthDate", e.target.value)} placeholder="DD/MM/AAAA" />
+                      <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Data Cadastro</Label>
+                      <Input className="h-10 rounded-xl" type="date" value={form.pfBirthDate} onChange={(e) => setF("pfBirthDate", e.target.value)} />
                     </div>
                   </div>
                   {form.status === "Inativo" && (

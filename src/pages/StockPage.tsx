@@ -22,9 +22,9 @@ export default function StockPage() {
   const [detailId, setDetailId] = useState<string | null>(null)
   const [detailType, setDetailType] = useState<"insumo" | "produto">("insumo")
   const [adjustOpen, setAdjustOpen] = useState(false)
-  const [adjustForm, setAdjustForm] = useState({ itemType: "insumo" as "insumo" | "produto", varianteId: "", productPackagingId: "", novaQuantidade: 0, observacao: "" })
+  const [adjustForm, setAdjustForm] = useState({ itemType: "insumo" as "insumo" | "produto", varianteId: "", insumoId: "", productPackagingId: "", novaQuantidade: 0, observacao: "" })
   const [transferOpen, setTransferOpen] = useState(false)
-  const [transferForm, setTransferForm] = useState({ itemType: "insumo" as "insumo" | "produto", varianteId: "", productPackagingId: "", quantidade: 0, localDestino: "", observacao: "" })
+  const [transferForm, setTransferForm] = useState({ itemType: "insumo" as "insumo" | "produto", varianteId: "", insumoId: "", productPackagingId: "", quantidade: 0, localDestino: "", observacao: "" })
   const [saving, setSaving] = useState(false)
   const [invScope, setInvScope] = useState<"completo" | "insumos" | "produtos">("completo")
   const [invStartOpen, setInvStartOpen] = useState(false)
@@ -38,10 +38,11 @@ export default function StockPage() {
   const [activeInventarioId, setActiveInventarioId] = useState<string | null>(null)
 
   const stock = useQuery(api.stock.list)
-  const history = useQuery(api.stock.getHistory, detailId ? { [detailType === "insumo" ? "varianteId" : "productPackagingId"]: detailId as any } as any : "skip")
+  const history = useQuery(api.stock.getHistory, detailId ? { insumoId: detailId as any, varianteId: detailId as any, productPackagingId: detailId as any } as any : "skip")
   const adjust = useMutation(api.stock.adjust)
   const transfer = useMutation(api.stock.transfer)
   const startInventory = useMutation(api.stock.startInventory)
+  const cancelInventory = useMutation(api.stock.cancelInventory)
   const inventarios = useQuery(api.stock.getInventarios)
   const invItems = useQuery(api.stock.getInventarioItems, activeInventarioId ? { inventarioId: activeInventarioId as any } : "skip")
   const updateContagem = useMutation(api.stock.updateContagem)
@@ -109,13 +110,26 @@ export default function StockPage() {
       } catch (e: any) { toast.error(e.message) } finally { setSaving(false) }
     }, true)
   }
+  const handleCancelInv = () => {
+    if (!activeInventarioId) return
+    showConfirm("Cancelar Inventario", "Todos os itens contados serao perdidos. Deseja cancelar este inventario?", async () => {
+      setSaving(true)
+      try {
+        await cancelInventory({ inventarioId: activeInventarioId as any, motivo: "Cancelado pelo usuario" })
+        toast.success("Inventario cancelado!")
+        setActiveInventarioId(null)
+      } catch (e: any) { toast.error(e.message) } finally { setSaving(false) }
+    }, true)
+  }
 
-  const openAdjust = (type: "insumo" | "produto", id: string, qtd: number) => {
-    setAdjustForm({ itemType: type, varianteId: type === "insumo" ? id : "", productPackagingId: type === "produto" ? id : "", novaQuantidade: qtd, observacao: "" })
+  const openAdjust = (type: "insumo" | "produto", item: any, qtd: number) => {
+    const isDir = type === "insumo" && item.insumoId === item._id
+    setAdjustForm({ itemType: type, varianteId: !isDir && type === "insumo" ? item._id : "", insumoId: isDir ? item._id : "", productPackagingId: type === "produto" ? item._id : "", novaQuantidade: qtd, observacao: "" })
     setAdjustOpen(true)
   }
-  const openTransfer = (type: "insumo" | "produto", id: string) => {
-    setTransferForm({ itemType: type, varianteId: type === "insumo" ? id : "", productPackagingId: type === "produto" ? id : "", quantidade: 0, localDestino: "", observacao: "" })
+  const openTransfer = (type: "insumo" | "produto", item: any) => {
+    const isDir = type === "insumo" && item.insumoId === item._id
+    setTransferForm({ itemType: type, varianteId: !isDir && type === "insumo" ? item._id : "", insumoId: isDir ? item._id : "", productPackagingId: type === "produto" ? item._id : "", quantidade: 0, localDestino: "", observacao: "" })
     setTransferOpen(true)
   }
 
@@ -189,8 +203,8 @@ export default function StockPage() {
               <TableCell>
                 <div className="flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                   <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary" onClick={() => { setDetailId(s._id); setDetailType(type) }}><History className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary" onClick={() => openAdjust(type, s._id, s.quantidade)}><Pencil className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary" onClick={() => openTransfer(type, s._id)}><ArrowRightLeft className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary" onClick={() => openAdjust(type, s, s.quantidade)}><Pencil className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary" onClick={() => openTransfer(type, s)}><ArrowRightLeft className="h-3.5 w-3.5" /></Button>
                 </div>
               </TableCell>
             </TableRow>
@@ -243,8 +257,8 @@ export default function StockPage() {
         <div className="bg-card rounded-2xl shadow-card border border-border overflow-hidden">
           <div className="p-4 border-b border-border bg-muted/30 flex gap-3 flex-wrap">
             <Input placeholder="Buscar movimentacoes..." className="h-10 rounded-xl max-w-sm" />
-            <Button className="rounded-xl h-10 shadow-primary-btn gap-2" onClick={() => openAdjust("insumo", "", 0)}><Pencil className="h-4 w-4" /> Ajuste Manual</Button>
-            <Button variant="outline" className="rounded-xl h-10 gap-2" onClick={() => openTransfer("insumo", "")}><ArrowRightLeft className="h-4 w-4" /> Transferencia</Button>
+            <Button className="rounded-xl h-10 shadow-primary-btn gap-2" onClick={() => { setAdjustForm({ itemType: "insumo", varianteId: "", insumoId: "", productPackagingId: "", novaQuantidade: 0, observacao: "" }); setAdjustOpen(true) }}><Pencil className="h-4 w-4" /> Ajuste Manual</Button>
+            <Button variant="outline" className="rounded-xl h-10 gap-2" onClick={() => { setTransferForm({ itemType: "insumo", varianteId: "", insumoId: "", productPackagingId: "", quantidade: 0, localDestino: "", observacao: "" }); setTransferOpen(true) }}><ArrowRightLeft className="h-4 w-4" /> Transferencia</Button>
           </div>
           {allMovements.length === 0 ? (
             <div className="p-16 text-center space-y-3"><History className="h-12 w-12 text-muted-foreground/30 mx-auto" /><p className="text-sm text-muted-foreground">Nenhuma movimentacao registrada.</p></div>
@@ -280,7 +294,7 @@ export default function StockPage() {
             <div className="bg-card rounded-2xl shadow-card border border-border overflow-hidden">
               <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between flex-wrap gap-3">
                 <div><p className="text-sm font-semibold text-foreground">Inventario {inv?.status === "aprovado" ? "Aprovado" : "Em andamento"}</p><p className="text-xs text-muted-foreground">{new Date(inv?.dataInicio || 0).toLocaleDateString("pt-BR")} — {inv?.itensContados}/{inv?.totalItens} contados, {inv?.diferencias} diferenças</p></div>
-                {inv?.status !== "aprovado" && <Button className="rounded-xl h-10 shadow-primary-btn" onClick={handleApprove} disabled={saving}>Aprovar e Aplicar Ajustes</Button>}
+                {inv?.status !== "aprovado" && <div className="flex gap-2"><Button className="rounded-xl h-10 shadow-primary-btn" onClick={handleApprove} disabled={saving}>Aprovar e Aplicar Ajustes</Button><Button variant="ghost" className="rounded-xl h-10 text-destructive hover:bg-destructive/10" onClick={handleCancelInv} disabled={saving}>Cancelar Inventario</Button></div>}
               </div>
               <Table>
                 <TableHeader className="bg-[#F0F2FF] dark:bg-muted/50">
@@ -372,8 +386,8 @@ export default function StockPage() {
             </div>
           </div>
           <div className="flex gap-3 px-6 py-4 border-t border-border bg-muted/20">
-            <Button variant="outline" className="rounded-xl flex-1 h-11" onClick={() => { const t = detailType; const id = selectedItem?._id || ""; const q = selectedItem?.quantidade || 0; setDetailId(null); openAdjust(t, id, q) }}><Pencil className="h-4 w-4" /> Ajustar</Button>
-            <Button variant="outline" className="rounded-xl flex-1 h-11" onClick={() => { const t = detailType; const id = selectedItem?._id || ""; setDetailId(null); openTransfer(t, id) }}><ArrowRightLeft className="h-4 w-4" /> Transferir</Button>
+            <Button variant="outline" className="rounded-xl flex-1 h-11" onClick={() => { const t = detailType; const item = selectedItem; setDetailId(null); if (item) openAdjust(t, item, item.quantidade || 0) }}><Pencil className="h-4 w-4" /> Ajustar</Button>
+            <Button variant="outline" className="rounded-xl flex-1 h-11" onClick={() => { const t = detailType; const item = selectedItem; setDetailId(null); if (item) openTransfer(t, item) }}><ArrowRightLeft className="h-4 w-4" /> Transferir</Button>
             <Button className="rounded-xl flex-1 h-11 shadow-primary-btn" onClick={() => setDetailId(null)}>Fechar</Button>
           </div>
         </DialogContent>

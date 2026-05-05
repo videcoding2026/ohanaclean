@@ -156,3 +156,12 @@ export const remove = mutation({
     await ctx.db.insert("auditLogs", { userId, timestamp: Date.now(), module: "Insumos", action: "EXCLUIR", entity: "Insumo", description: "Insumo removido" })
   },
 })
+
+export const updatePrecoMedio = mutation({
+  args: { insumoId: v.id("insumos"), precoMedio: v.number() },
+  handler: async (ctx, args) => {
+    const { userId } = await requireRole(ctx, ["Admin", "Estoque", "Financeiro"])
+    await ctx.db.patch(args.insumoId, { precoMedio: args.precoMedio, updatedAt: Date.now() } as any)
+    await ctx.db.insert("auditLogs", { userId, timestamp: Date.now(), module: "Insumos", action: "EDITAR", entity: "Insumo", entityId: args.insumoId, description: `PMP atualizado para R$ ${args.precoMedio.toFixed(4)}` })
+  },
+})

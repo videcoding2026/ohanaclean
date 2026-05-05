@@ -255,6 +255,11 @@ export default defineSchema(
       observacaoSubstituicao: v.optional(v.string()),
       status: v.union(v.literal("Ativo"), v.literal("Inativo")),
       temVariantes: v.optional(v.boolean()),
+      quantidade: v.optional(v.number()),
+      estoqueMinimo: v.optional(v.number()),
+      estoqueMaximo: v.optional(v.number()),
+      localizacao: v.optional(v.string()),
+      precoMedio: v.optional(v.number()),
       createdAt: v.optional(v.number()),
       updatedAt: v.number(),
     })
@@ -502,6 +507,7 @@ export default defineSchema(
       inventarioId: v.id("inventarios"),
       itemType: v.union(v.literal("insumo"), v.literal("produto")),
       varianteId: v.optional(v.id("insumoVariants")),
+      insumoId: v.optional(v.id("insumos")),
       productPackagingId: v.optional(v.id("productPackagings")),
       nome: v.optional(v.string()),
       unidade: v.optional(v.string()),
@@ -571,6 +577,108 @@ export default defineSchema(
     })
       .index("by_productionOrderId", ["productionOrderId"])
       .index("by_lote", ["lote"]),
+
+    priceTables: defineTable({
+      nome: v.string(),
+      codigo: v.optional(v.string()),
+      descricao: v.optional(v.string()),
+      baseTableId: v.optional(v.id("priceTables")),
+      baseAdjustment: v.optional(v.number()),
+      validFrom: v.optional(v.number()),
+      validTo: v.optional(v.number()),
+      discountMax: v.optional(v.number()),
+      marginMin: v.optional(v.number()),
+      status: v.union(v.literal("Ativa"), v.literal("Inativa")),
+      tipoCliente: v.optional(v.string()),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.number(),
+    })
+      .index("by_status", ["status"]),
+
+    priceTableItems: defineTable({
+      tableId: v.id("priceTables"),
+      productPackagingId: v.id("productPackagings"),
+      precoVenda: v.number(),
+      margem: v.optional(v.number()),
+      custoUnitario: v.optional(v.number()),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.number(),
+    })
+      .index("by_tableId", ["tableId"])
+      .index("by_productPackagingId", ["productPackagingId"]),
+
+    priceTableClients: defineTable({
+      tableId: v.id("priceTables"),
+      clientId: v.id("clients"),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.number(),
+    })
+      .index("by_tableId", ["tableId"])
+      .index("by_clientId", ["clientId"]),
+
+    priceHistories: defineTable({
+      tableId: v.id("priceTables"),
+      productPackagingId: v.id("productPackagings"),
+      precoAnterior: v.optional(v.number()),
+      precoNovo: v.number(),
+      userId: v.optional(v.string()),
+      userName: v.optional(v.string()),
+      motivo: v.optional(v.string()),
+      createdAt: v.optional(v.number()),
+    }).index("by_tableId", ["tableId"]),
+
+    orders: defineTable({
+      tipo: v.union(v.literal("orcamento"), v.literal("pedido")),
+      numero: v.optional(v.string()),
+      clientId: v.id("clients"),
+      vendedorId: v.optional(v.string()),
+      vendedorNome: v.optional(v.string()),
+      data: v.number(),
+      status: v.union(v.literal("Orcamento"), v.literal("Confirmado"), v.literal("Em separacao"), v.literal("Aguardando retirada"), v.literal("Saiu para entrega"), v.literal("Concluido"), v.literal("Cancelado")),
+      subtotal: v.optional(v.number()),
+      descontoGeral: v.optional(v.number()),
+      descontoPercentual: v.optional(v.number()),
+      frete: v.optional(v.number()),
+      freteGratis: v.optional(v.boolean()),
+      total: v.optional(v.number()),
+      condPagamento: v.optional(v.string()),
+      formaPagamento: v.optional(v.string()),
+      modalidadeEntrega: v.optional(v.union(v.literal("retirada"), v.literal("entrega"))),
+      dataPrevistaEntrega: v.optional(v.number()),
+      enderecoEntrega: v.optional(v.string()),
+      observacoes: v.optional(v.string()),
+      motivoCancelamento: v.optional(v.string()),
+      validadeOrcamento: v.optional(v.number()),
+      createdAt: v.optional(v.number()),
+      updatedAt: v.number(),
+    }).index("by_status", ["status"]).index("by_clientId", ["clientId"]).index("by_numero", ["numero"]),
+
+    orderItems: defineTable({
+      orderId: v.id("orders"), productId: v.id("products"),
+      productPackagingId: v.optional(v.id("productPackagings")),
+      nome: v.optional(v.string()), quantidade: v.number(),
+      precoUnitario: v.number(), subtotal: v.number(),
+      custoUnitario: v.optional(v.number()), margem: v.optional(v.number()),
+      createdAt: v.optional(v.number()), updatedAt: v.number(),
+    }).index("by_orderId", ["orderId"]),
+
+    orderStatusHistory: defineTable({
+      orderId: v.id("orders"),
+      statusAnterior: v.optional(v.string()), statusNovo: v.string(),
+      data: v.number(), usuarioId: v.optional(v.string()),
+      usuarioNome: v.optional(v.string()), observacao: v.optional(v.string()),
+      automatico: v.optional(v.boolean()),
+    }).index("by_orderId", ["orderId"]),
+
+    contasReceber: defineTable({
+      orderId: v.id("orders"), clientId: v.id("clients"),
+      clienteNome: v.optional(v.string()), descricao: v.optional(v.string()),
+      valor: v.number(), dataVencimento: v.number(),
+      dataPagamento: v.optional(v.number()), formaPagamento: v.optional(v.string()),
+      status: v.union(v.literal("Aberta"), v.literal("Vencida"), v.literal("Paga"), v.literal("Cancelada")),
+      parcela: v.optional(v.string()), observacao: v.optional(v.string()),
+      createdAt: v.optional(v.number()), updatedAt: v.number(),
+    }).index("by_orderId", ["orderId"]).index("by_clientId", ["clientId"]).index("by_status", ["status"]),
   },
   { schemaValidation: true }
 )
