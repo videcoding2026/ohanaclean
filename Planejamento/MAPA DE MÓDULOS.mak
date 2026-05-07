@@ -1,6 +1,6 @@
 ┌─────────────────────────────────────────────────────────────────┐
-│           SISTEMA CLEANMANAGER - MAPA DE MÓDULOS               │
-│           Versão 2.0 — Reorganização Aplicada                  │
+│           OHANA CLEAN - MAPA DE MÓDULOS               │
+│           Versão 1.0 — Reorganização Aplicada                  │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ── ÁREA A: SISTEMA ─────────────────────────────────────────  │
